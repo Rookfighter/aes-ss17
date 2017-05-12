@@ -23,14 +23,13 @@ begin
     process(clk)
     begin
         if rising_edge(clk) then
-            -- first increment cnt, then concat
-            -- keep front bit always 0
-            cnt_tmp <= '0' & (cnt + 1);
+            -- increment cnt, carry bit defines LED status
+            cnt <= cnt + 1;
         end if;
     end process;
 
-    -- cnt is always without carry bit
-    cnt <= cnt_tmp(CNTLEN-1 DOWNTO 0);
+    -- always keep a leading 0 for freq = 0
+    cnt_tmp <= '0' & cnt;
     -- led status is defined by carry bit
     -- position of carry bit is defined by freq
     led <= cnt_tmp(CNTLEN - CONV_INTEGER(freq));
