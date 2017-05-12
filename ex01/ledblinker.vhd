@@ -1,4 +1,9 @@
--- LED blinker with configurable frequency
+-- ledblinker.vhd
+--
+-- Created on: 12 May 2017
+--     Author: Fabian Meyer
+--
+-- LED blinker with configurable frequency.
 
 library ieee;
 use ieee.std_logic_1164.all;
