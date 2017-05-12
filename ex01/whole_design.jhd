@@ -1,0 +1,5 @@
+MODULE whole_design
+	SUBMODULE freq_controller
+		INSTANCE XLXI_1
+	SUBMODULE ledblinker
+		INSTANCE XLXI_2

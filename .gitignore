@@ -48,3 +48,5 @@
 *.xrpt
 *.prj
 *.twr
+*.sym
+*.spl
