@@ -9,7 +9,6 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_unsigned.all;
 
--- LED blinking module
 entity ledblinker is
     generic(RSTDEF: std_logic := '1');
     port (rst:  in  std_logic;                    -- reset, RSTDEF active
@@ -20,11 +19,11 @@ end entity ledblinker;
 
 architecture behavioral of ledblinker is
     -- define length of counter
-    constant CNTLEN : natural := 26;
+    constant CNTLEN: natural := 26;
     -- counter that is incremented on each clk
-    signal cnt : std_logic_vector(CNTLEN-1 downto 0) := (others => '0');
+    signal cnt: std_logic_vector(CNTLEN-1 downto 0) := (others => '0');
     -- counter plus zero bit (freq = 0)
-    signal cnt_tmp : std_logic_vector(CNTLEN downto 0) := (others => '0');
+    signal cnt_tmp: std_logic_vector(CNTLEN downto 0) := (others => '0');
 begin
 
     process(rst, clk)

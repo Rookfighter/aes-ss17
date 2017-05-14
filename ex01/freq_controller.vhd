@@ -40,11 +40,11 @@ architecture behavioral of freq_controller is
     signal cnt_tmp: std_logic_vector(CNTLEN downto 0) := (others => '0');
     signal cnt_en: std_logic := '0';
 
-    -- increment frequency
+    -- if set, increment frequency
     signal inc: std_logic := '0';
-    -- decrement frequency
+    -- if set, decrement frequency
     signal dec: std_logic := '0';
-    -- tmp frequency
+    -- signal for internal freq computation
     signal freq_tmp: std_logic_vector(2 downto 0) :=(others => '0');
 
 begin
@@ -58,7 +58,7 @@ begin
     begin
         if rst = RSTDEF then
             cnt_tmp <= (others => '0');
-				freq_tmp <= (others => '0');
+            freq_tmp <= (others => '0');
         elsif rising_edge(clk) then
             -- increment frequency divider
             cnt_tmp <= '0' & cnt + 1;

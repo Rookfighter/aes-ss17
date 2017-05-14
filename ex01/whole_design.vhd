@@ -9,13 +9,13 @@ library ieee;
 use ieee.std_logic_1164.all;
 
 entity whole_design is
-    generic(RSTDEF: std_logic := '0');
-    port(rst:  in  std_logic;
-         clk:  in  std_logic;
-         btn0: in  std_logic;
-         btn1: in  std_logic;
-         led:  out std_logic;
-         freq: out std_logic_vector(2 downto 0));
+    generic(RSTDEF: std_logic := '0'); -- reset button is low active
+    port(rst:  in  std_logic;                     -- reset, RESTDEF active
+         clk:  in  std_logic;                     -- clock, rising edge
+         btn0: in  std_logic;                     -- increment button, low active
+         btn1: in  std_logic;                     -- decrement button, low active
+         led:  out std_logic;                     -- LED status, active high
+         freq: out std_logic_vector(2 downto 0)); -- blinking frequency, 000 = stop, 111 = fast
 
 end whole_design;
 
@@ -28,7 +28,7 @@ architecture behavioral of whole_design is
           freq: in  std_logic_vector(2 downto 0); -- blinking frequency, 000 = stop, 111 = fast
           led:  out std_logic);                   -- LED status, active high
     end component;
-    
+
     component freq_controller is
     generic(RSTDEF: std_logic := '1');
     port(rst:  in  std_logic;                     -- reset, RSTDEF active
@@ -37,14 +37,14 @@ architecture behavioral of whole_design is
          btn1: in  std_logic;                     -- decrement button, low active
          freq: out std_logic_vector(2 downto 0)); -- frequency, 000 = stop, 111 = fast
     end component;
-    
+
     -- signal to connect freq, ledblinker and freq_controller
     signal freq_tmp: std_logic_vector(2 downto 0) := (others => '0');
 begin
-    
+
     -- connect freq_tmp to out port freq
     freq <= freq_tmp;
-    
+
     -- connect freq of ledblinker to freq_tmp (read)
     lblink: ledblinker
     generic map(RSTDEF => RSTDEF)
@@ -63,4 +63,3 @@ begin
              freq => freq_tmp);
 
 end behavioral;
-

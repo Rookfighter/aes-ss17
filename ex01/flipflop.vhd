@@ -10,8 +10,7 @@ use ieee.std_logic_1164.all;
 use ieee.std_logic_unsigned.all;
 
 entity flipflop is
-    generic(RSTDEF: std_logic := '1'); -- define when reset is active
-
+    generic(RSTDEF: std_logic := '1');
     port(rst: in  std_logic;   -- reset, RSTDEF active
          clk: in  std_logic;   -- clock, rising edge
          en:  in  std_logic;   -- enable, high active

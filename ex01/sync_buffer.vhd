@@ -12,7 +12,6 @@ use ieee.std_logic_unsigned.all;
 
 entity sync_buffer is
    generic(RSTDEF: std_logic := '1');
-
    port(rst:    in  std_logic;  -- reset, RSTDEF active
         clk:    in  std_logic;  -- clock, rising edge
         en:     in  std_logic;  -- enable, high active
@@ -27,11 +26,11 @@ architecture behavioral of sync_buffer is
 
     component flipflop is
         generic(RSTDEF: std_logic);
-        port(rst:   in  std_logic;
-             clk:   in  std_logic;
-             en:    in  std_logic;
-             d:     in  std_logic;
-             q:     out std_logic);
+        port(rst: in  std_logic;
+             clk: in  std_logic;
+             en:  in  std_logic;
+             d:   in  std_logic;
+             q:   out std_logic);
     end component;
 
     -- length of counter
@@ -51,8 +50,7 @@ architecture behavioral of sync_buffer is
 
 begin
 
-    -- signal is chained through 2 flipflops to delay working signal from
-    -- original signal
+    -- signal is chained through 2 flipflops to sync with clock
     flipflop1 : flipflop
     generic map(RSTDEF => RSTDEF)
     port map(rst => rst,
@@ -69,10 +67,9 @@ begin
             d => q1,
             q => q2);
 
-
+    -- connect debounced signal to out port
     dout <= din_deb;
 
-    -- debouncing like Maxim-Dallas MAX6816
     process (rst, clk)
     begin
         if rst = RSTDEF then
