@@ -1,8 +1,13 @@
 
-# PlanAhead Generated physical constraints 
 
 NET "clk" LOC = M21;
 NET "led" LOC = D24;
-NET "freq_out[2]" LOC = L24;
-NET "freq_out[1]" LOC = L23;
-NET "freq_out[0]" LOC = K24;
+NET "freq_out[2]" LOC = N24;
+NET "freq_out[1]" LOC = N23;
+NET "freq_out[0]" LOC = M24;
+
+# PlanAhead Generated physical constraints 
+
+NET "rst" LOC = AE24;
+NET "btn0" LOC = AA23;
+NET "btn1" LOC = AC24;
