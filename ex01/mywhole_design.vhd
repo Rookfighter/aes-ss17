@@ -1,4 +1,4 @@
--- flipflop.vhd
+-- whole_design.vhd
 --
 -- Created on: 14 May 2017
 --     Author: Fabian Meyer
@@ -9,7 +9,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 
 entity mywhole_design is
-    generic(RSTDEF: std_logic := '1');
+    generic(RSTDEF: std_logic := '0');
     port(rst:  in  std_logic;
          clk:  in  std_logic;
          btn0: in  std_logic;

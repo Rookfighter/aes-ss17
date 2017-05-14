@@ -45,7 +45,7 @@ architecture behavioral of freq_controller is
     -- decrement frequency
     signal dec: std_logic := '0';
     -- tmp frequency
-    signal freq_tmp: std_logic_vector(2 downto 0) := (others => '0');
+    signal freq_tmp: std_logic_vector(2 downto 0) :=(others => '0');
 
 begin
     -- carry bit defines enable for sync_buffers
@@ -58,22 +58,21 @@ begin
     begin
         if rst = RSTDEF then
             cnt_tmp <= (others => '0');
+				freq_tmp <= (others => '0');
         elsif rising_edge(clk) then
             -- increment frequency divider
             cnt_tmp <= '0' & cnt + 1;
 
-            -- only if enable is set check inc or dec
-            if cnt_en = '1' then
-                if inc = '1' then
-                    -- increment frequency, overflow not handled
-                    -- just start at 0 again
-                    freq_tmp <= freq_tmp + 1;
-                elsif dec = '1' then
-                    -- decrement frequency, overflow not handled
-                    -- just start at full freq again
-                    freq_tmp <= freq_tmp - 1;
-                end if;
+            if inc = '1' then
+                -- increment frequency, overflow not handled
+                -- just start at 0 again
+                freq_tmp <= freq_tmp + 1;
+            elsif dec = '1' then
+                -- decrement frequency, overflow not handled
+                -- just start at full freq again
+                freq_tmp <= freq_tmp - 1;
             end if;
+
         end if;
     end process;
 

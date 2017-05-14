@@ -20,7 +20,7 @@ end entity ledblinker;
 
 architecture behavioral of ledblinker is
     -- define length of counter
-    constant CNTLEN : natural := 24;
+    constant CNTLEN : natural := 26;
     -- counter that is incremented on each clk
     signal cnt : std_logic_vector(CNTLEN-1 downto 0) := (others => '0');
     -- counter plus zero bit (freq = 0)
