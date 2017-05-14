@@ -9,6 +9,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.std_logic_unsigned.all;
 
 entity freq_controller is
     generic(RSTDEF: std_logic := '1');
@@ -89,14 +90,14 @@ begin
 
      -- map rising edge (release button) of btn1 to dec
      -- connect frequency divider carry to enable
-     sbuf0 : sync_buffer
+     sbuf1 : sync_buffer
      generic map(RSTDEF => RSTDEF)
      port map(rst   => rst,
               clk   => clk,
               en    => cnt_en,
               din   => btn1,
               dout  => open,
-              redge => inc,
+              redge => dec,
               fedge => open);
 
 end architecture behavioral;

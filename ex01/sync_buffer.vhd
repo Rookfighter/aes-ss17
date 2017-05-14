@@ -77,7 +77,7 @@ begin
     begin
         if rst = RSTDEF then
             din_deb <= '0';
-            cnt <= CNTEMPTY;
+            cnt <= (others => '0');
             redge <= '0';
             fedge <= '0';
         elsif rising_edge(clk) then
