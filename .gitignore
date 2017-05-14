@@ -6,6 +6,7 @@
 */xlnx_auto_0_xdb/
 */ipcore_dir/
 */planAhead_run_*/
+*/isim/
 */sch2HdlBatchFile
 
 
@@ -55,4 +56,10 @@
 *.spl
 *.vhf
 *.debug
-*tcl
+*.tcl
+*.wdb
+*.xsvf
+*.xmsgs
+*.cmd
+*.dmp
+*.exe
