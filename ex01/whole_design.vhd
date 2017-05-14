@@ -8,7 +8,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
-entity mywhole_design is
+entity whole_design is
     generic(RSTDEF: std_logic := '0');
     port(rst:  in  std_logic;
          clk:  in  std_logic;
@@ -17,9 +17,9 @@ entity mywhole_design is
          led:  out std_logic;
          freq: out std_logic_vector(2 downto 0));
 
-end mywhole_design;
+end whole_design;
 
-architecture behavioral of mywhole_design is
+architecture behavioral of whole_design is
 
     component ledblinker is
     generic(RSTDEF: std_logic := '1');
