@@ -63,8 +63,12 @@ begin
             -- only if enable is set check inc or dec
             if cnt_en = '1' then
                 if inc = '1' then
+                    -- increment frequency, overflow not handled
+                    -- just start at 0 again
                     freq_tmp <= freq_tmp + 1;
                 elsif dec = '1' then
+                    -- decrement frequency, overflow not handled
+                    -- just start at full freq again
                     freq_tmp <= freq_tmp - 1;
                 end if;
             end if;

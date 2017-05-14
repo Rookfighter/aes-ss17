@@ -11,9 +11,11 @@ use ieee.std_logic_unsigned.all;
 
 -- LED blinking module
 entity ledblinker is
-    port (clk  : in std_logic;                      -- clock, rising edge
-          freq : in std_logic_vector(2 downto 0);   -- blinking frequency, 000 = stop, 111 = fast
-          led  : out std_logic);                    -- LED status, active high
+    generic(RSTDEF: std_logic := '1');
+    port (rst:  in  std_logic;                    -- reset, RSTDEF active
+          clk:  in  std_logic;                    -- clock, rising edge
+          freq: in  std_logic_vector(2 downto 0); -- blinking frequency, 000 = stop, 111 = fast
+          led:  out std_logic);                   -- LED status, active high
 end entity ledblinker;
 
 architecture behavioral of ledblinker is
@@ -25,9 +27,11 @@ architecture behavioral of ledblinker is
     signal cnt_tmp : std_logic_vector(CNTLEN downto 0) := (others => '0');
 begin
 
-    process(clk)
+    process(rst, clk)
     begin
-        if rising_edge(clk) then
+        if rst = RSTDEF then
+            cnt <= (others => '0');
+        elsif rising_edge(clk) then
             -- increment cnt, carry bit defines LED status
             cnt <= cnt + 1;
         end if;
