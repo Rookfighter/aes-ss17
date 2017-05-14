@@ -13,7 +13,6 @@ use ieee.std_logic_unsigned.all;
 
 entity freq_controller is
     generic(RSTDEF: std_logic := '1');
-
     port(rst:  in  std_logic;                     -- reset, RSTDEF active
          clk:  in  std_logic;                     -- clock, rising edge
          btn0: in  std_logic;                     -- increment button, low active
@@ -39,7 +38,7 @@ architecture behavioral of freq_controller is
     constant CNTLEN: natural := 15;
     signal cnt: std_logic_vector(CNTLEN-1 downto 0) := (others => '0');
     signal cnt_tmp: std_logic_vector(CNTLEN downto 0) := (others => '0');
-    signal cnt_en: std_logic;
+    signal cnt_en: std_logic := '0';
 
     -- increment frequency
     signal inc: std_logic := '0';
@@ -52,6 +51,8 @@ begin
     -- carry bit defines enable for sync_buffers
     cnt_en <= cnt_tmp(CNTLEN);
     cnt <= cnt_tmp(CNTLEN-1 downto 0);
+    -- connect freq out port with internal freq_tmp
+    freq <= freq_tmp;
 
     process(rst, clk)
     begin
@@ -78,7 +79,7 @@ begin
 
     -- map rising edge (release button) of btn0 to inc
     -- connect frequency divider carry to enable
-    sbuf0 : sync_buffer
+    sbuf0: sync_buffer
     generic map(RSTDEF => RSTDEF)
     port map(rst   => rst,
              clk   => clk,
@@ -90,7 +91,7 @@ begin
 
      -- map rising edge (release button) of btn1 to dec
      -- connect frequency divider carry to enable
-     sbuf1 : sync_buffer
+     sbuf1: sync_buffer
      generic map(RSTDEF => RSTDEF)
      port map(rst   => rst,
               clk   => clk,
