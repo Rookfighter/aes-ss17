@@ -4,7 +4,10 @@
 */iseconfig/
 */xst/
 */xlnx_auto_0_xdb/
-+/ipcore_dir/
+*/ipcore_dir/
+*/planAhead_run_1/
+*/sch2HdlBatchFile
+
 
 *_pad.txt
 *.bit
@@ -50,3 +53,6 @@
 *.twr
 *.sym
 *.spl
+*.vhf
+*.debug
+*tcl
