@@ -127,8 +127,10 @@ begin
                             -- after 100us
                             en_cnt(ENCNTLEN-1) <= '1';
                             ins <= "001100";
-                        when 40 * CLKPERMS + 1000 * CLKPERUS =>
-                            -- after 100us
+                        when 40 * CLKPERMS + 1000 * CLKPERUS - 1 =>
+                            -- after 100us - 1 cycle, so we are in ready state
+                            -- on next cycle to receive commands
+                            -- when we have finished initialization
                             state <= SREADY;
                             rdy <= '1';
                         when others =>
@@ -155,7 +157,7 @@ begin
                         when 300 * CLKPERUS =>
                             en_cnt(ENCNTLEN-1) <= '1';
                             ins <= "10" & din(3 downto 0);
-                        when 400 * CLKPERUS =>
+                        when 400 * CLKPERUS - 1 =>
                             state <= SREADY;
                             rdy <= '1';
                         when others =>
