@@ -71,12 +71,10 @@ begin
         wait for clk_period/2;
    end process;
 
-
     -- Stimulus process
     stim_proc: process
     begin
         -- hold reset state for 100 ns.
-        rst <= '0';
         wait for 100 ns;
         wait for clk_period*10;
         rst <= '1';
@@ -90,7 +88,7 @@ begin
 
         -- write char at pos 4 in line 1
         din <= "11000000";
-        posx <= "00100";
+        posx <= "0100";
         posy <= '1';
         flush <= '1';
 
@@ -104,7 +102,6 @@ begin
 
         -- rdy should be 1 here!
 
-        wait;
+        --wait;
     end process;
-
-end;
+end architecture;
