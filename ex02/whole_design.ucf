@@ -11,3 +11,4 @@ NET "rs" LOC = F24;
 NET "rw" LOC = C21;
 NET "clk" LOC = M21;
 NET "rst" LOC = AE24;
+NET "led" LOC = D24;

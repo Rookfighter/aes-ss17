@@ -13,6 +13,7 @@ entity whole_design is
     generic(RSTDEF: std_logic := '0');
     port(rst:  in    std_logic;
          clk:  in    std_logic;
+         led:  out   std_logic;
          en:   out   std_logic;
          rw:   out   std_logic;
          rs:   out   std_logic;
@@ -62,7 +63,8 @@ begin
               rs => rs,
               bl => bl,
               data => data);
-
+    
+    led <= rst;
     -- lower bits of cnt define x position of character to write
     posx <= cnt(3 downto 0);
     -- carry bit of cnt defines line

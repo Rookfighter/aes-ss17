@@ -9,7 +9,6 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_unsigned.all;
-use ieee.numeric_std.all;
 
 entity lcd is
     generic(RSTDEF: std_logic := '0');
@@ -77,7 +76,7 @@ begin
             case state is
                 -- init state computes initialization sequence
                 when SINIT =>
-                    case to_integer(unsigned(cnt)) is
+                    case conv_integer(cnt) is
                         when 0 =>
                             en_cnt(ENCNTLEN-1) <= '1';
                             ins <= "00000";
@@ -146,7 +145,7 @@ begin
                     end if;
                 -- FLUSH state writes current char din at position (posx/posy)
                 when SFLUSH =>
-                    case to_integer(unsigned(cnt)) is
+                    case conv_integer(cnt) is
                         when 100 * CLKPERUS =>
                             en_cnt(ENCNTLEN-1) <= '1';
                             ins <= "0" & posx;
