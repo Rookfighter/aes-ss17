@@ -65,3 +65,5 @@
 *.exe
 *.jhd
 *.schlog
+
+xilinxsim.ini
