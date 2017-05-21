@@ -1,3 +1,9 @@
+-- lcd_tb.vhd
+--
+-- Created on: 21 May 2017
+--     Author: Fabian Meyer
+--
+-- Testbench for LCD component.
 
 library ieee;
 use ieee.std_logic_1164.all;
