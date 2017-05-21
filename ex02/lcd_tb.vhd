@@ -26,8 +26,7 @@ architecture behavior of lcd_tb is
          rw:    out    std_logic;
          rs:    out    std_logic;
          bl:    out    std_logic;
-         data:  inout  std_logic_vector(3 downto 0)
-        );
+         data:  inout  std_logic_vector(3 downto 0));
     end component;
 
 
@@ -55,18 +54,18 @@ architecture behavior of lcd_tb is
 begin
     -- Instantiate the Unit Under Test (UUT)
     uut: lcd
-        port map (rst => rst,
-                  clk => clk,
-                  din => din,
-                  posx => posx,
-                  posy => posy,
-                  flush => flush,
-                  rdy => rdy,
-                  en => en,
-                  rw => rw,
-                  rs => rs,
-                  bl => bl,
-                  data => data);
+    port map (rst => rst,
+              clk => clk,
+              din => din,
+              posx => posx,
+              posy => posy,
+              flush => flush,
+              rdy => rdy,
+              en => en,
+              rw => rw,
+              rs => rs,
+              bl => bl,
+              data => data);
 
     -- Clock process definitions
     clk_process :process
