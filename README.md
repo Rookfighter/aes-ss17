@@ -1,4 +1,4 @@
-# Advanced Embedded Systems exercises SS17
+# Advanced Embedded Systems Lab SS17
 
 Repo for the exercises of the *Advanced Embedded Systems Lab* in SS 17 of the
 Albert-Ludwigs Universität Freiburg.
