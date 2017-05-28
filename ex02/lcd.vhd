@@ -34,7 +34,6 @@ architecture behavioral of lcd is
     -- constants to define cycles per time unit
     constant CLKPERMS: natural := 24000;
     constant CLKPERUS: natural := 24;
-    constant CLKPEREN: natural := 8;
 
     -- counter for applying enable signal for 300ns (8 cycles)
     constant ENCNTLEN: natural := 4;
@@ -44,7 +43,7 @@ architecture behavioral of lcd is
     constant CNTLEN: natural := 20;
     signal   cnt:    std_logic_vector(CNTLEN-1 downto 0) := (others => '0');
 
-    -- instruction signal that splits into "rs + rw + data"
+    -- instruction signal that splits into "rs + data"
     signal   ins:    std_logic_vector(4 downto 0);
 begin
 
@@ -54,6 +53,8 @@ begin
     -- map instruction signal to out ports
     rs   <= ins(4);
     data <= ins(3 downto 0);
+
+    -- in commands used here rw always stays 0
     rw   <= '0';
     bl   <= '1';
 
@@ -68,7 +69,7 @@ begin
         elsif rising_edge(clk) then
             cnt <= cnt + 1;
             -- always set enable to 0 again
-            -- enable will always only last CLKPEREN cycles
+            -- enable will always only last 2**ENCNTLEN cycles
             if en_cnt(ENCNTLEN-1) = '1' then
                 en_cnt <= en_cnt + 1;
             end if;
@@ -125,8 +126,11 @@ begin
                             -- after 100us
                             en_cnt(ENCNTLEN-1) <= '1';
                             ins <= "00110";
-                        when 40 * CLKPERMS + 1000 * CLKPERUS =>
-                            -- after 100us
+                        when 40 * CLKPERMS + 1000 * CLKPERUS - 1 =>
+                            -- after 100us - 1 cycle
+                            -- save a cycle, because we will stay at least 1
+                            -- cycle in ready state before we set a new write
+                            -- instruction
                             state <= SREADY;
                             rdy <= '1';
                         when others =>
@@ -137,23 +141,32 @@ begin
                         state <= SFLUSH;
                         rdy <= '0';
                         cnt <= (others => '0');
-                        -- set already first instruction for writing data
+                        -- set already first instruction for writing data to save a cycle
                         en_cnt(ENCNTLEN-1) <= '1';
                         ins <= "01" & posy & "00";
                     end if;
                 -- FLUSH state writes current char din at position (posx/posy)
                 when SFLUSH =>
+                    -- because enable signal was set when counter was reset
+                    -- all times have to be decreased by one cycle
                     case conv_integer(cnt) is
                         when 100 * CLKPERUS - 1 =>
+                            -- after 100us
                             en_cnt(ENCNTLEN-1) <= '1';
                             ins <= "0" & posx;
                         when 200 * CLKPERUS - 1 =>
+                            -- after 100us
                             en_cnt(ENCNTLEN-1) <= '1';
                             ins <= "1" & din(7 downto 4);
                         when 300 * CLKPERUS - 1 =>
+                            -- after 100us
                             en_cnt(ENCNTLEN-1) <= '1';
                             ins <= "1" & din(3 downto 0);
-                        when 400 * CLKPERUS - 1 =>
+                        when 400 * CLKPERUS - 2 =>
+                            -- after 100us - 1 cycle
+                            -- save a cycle, because we will stay at least 1
+                            -- cycle in ready state before we set a new write
+                            -- instruction
                             state <= SREADY;
                             rdy <= '1';
                         when others =>
