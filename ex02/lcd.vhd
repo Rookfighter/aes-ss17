@@ -12,18 +12,18 @@ use ieee.std_logic_unsigned.all;
 
 entity lcd is
     generic(RSTDEF: std_logic := '0');
-    port(rst:   in  std_logic;                      -- reset, RSTDEF active
-         clk:   in  std_logic;                      -- clock, rising edge
-         din:   in  std_logic_vector(7 downto 0);   -- data in, 8 bit ASCII char
-         posx:  in  std_logic_vector(3 downto 0);   -- x position within a line of LCD
-         posy:  in  std_logic;                      -- y position (line number)
-         flush: in  std_logic;                      -- flush input, high active
-         rdy:   out std_logic;                      -- ready, high active
-         en:    out std_logic;                      -- enable, high active
+    port(rst:   in  std_logic;                       -- reset, RSTDEF active
+         clk:   in  std_logic;                       -- clock, rising edge
+         din:   in  std_logic_vector(7 downto 0);    -- data in, 8 bit ASCII char
+         posx:  in  std_logic_vector(3 downto 0);    -- x position within a line of LCD
+         posy:  in  std_logic;                       -- y position (line number)
+         flush: in  std_logic;                       -- flush input, high active
+         rdy:   out std_logic;                       -- ready, high active
+         en:    out std_logic;                       -- enable, high active
          rw:    out std_logic;
          rs:    out std_logic;
-         bl:    out std_logic;
-         data:  inout std_logic_vector(3 downto 0));
+         bl:    out std_logic;                       -- backlight, high active
+         data:  inout std_logic_vector(3 downto 0)); -- data, dual direction
 end entity;
 
 architecture behavioral of lcd is
@@ -124,11 +124,9 @@ begin
                         when 40 * CLKPERMS + 900 * CLKPERUS =>
                             -- after 100us
                             en_cnt(ENCNTLEN-1) <= '1';
-                            ins <= "01100";
-                        when 40 * CLKPERMS + 1000 * CLKPERUS - 1 =>
-                            -- after 100us - 1 cycle, so we are in ready state
-                            -- on next cycle to receive commands
-                            -- when we have finished initialization
+                            ins <= "00110";
+                        when 40 * CLKPERMS + 1000 * CLKPERUS =>
+                            -- after 100us
                             state <= SREADY;
                             rdy <= '1';
                         when others =>
@@ -146,13 +144,13 @@ begin
                 -- FLUSH state writes current char din at position (posx/posy)
                 when SFLUSH =>
                     case conv_integer(cnt) is
-                        when 100 * CLKPERUS =>
+                        when 100 * CLKPERUS - 1 =>
                             en_cnt(ENCNTLEN-1) <= '1';
                             ins <= "0" & posx;
-                        when 200 * CLKPERUS =>
+                        when 200 * CLKPERUS - 1 =>
                             en_cnt(ENCNTLEN-1) <= '1';
                             ins <= "1" & din(7 downto 4);
-                        when 300 * CLKPERUS =>
+                        when 300 * CLKPERUS - 1 =>
                             en_cnt(ENCNTLEN-1) <= '1';
                             ins <= "1" & din(3 downto 0);
                         when 400 * CLKPERUS - 1 =>

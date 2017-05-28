@@ -11,14 +11,14 @@ use ieee.std_logic_unsigned.all;
 
 entity whole_design is
     generic(RSTDEF: std_logic := '0');
-    port(rst:  in    std_logic;
-         clk:  in    std_logic;
-         led:  out   std_logic;
-         en:   out   std_logic;
+    port(rst:  in    std_logic;                     -- reset, RSTDEF active
+         clk:  in    std_logic;                     -- clock, rising edge
+         led:  out   std_logic;                     -- led, high active
+         en:   out   std_logic;                     -- enable, high active
          rw:   out   std_logic;
          rs:   out   std_logic;
-         bl:   out   std_logic;
-         data: inout std_logic_vector(3 downto 0));
+         bl:   out   std_logic;                     -- backlight, high active
+         data: inout std_logic_vector(3 downto 0)); -- data, dual direction
 end whole_design;
 
 architecture behavioral of whole_design is
@@ -63,7 +63,7 @@ begin
               rs => rs,
               bl => bl,
               data => data);
-    
+
     led <= rst;
     -- lower bits of cnt define x position of character to write
     posx <= cnt(3 downto 0);
@@ -99,7 +99,7 @@ begin
             flush <= '0';
         elsif rising_edge(clk) then
             -- disable flush every cycle
-            -- flush will always only stable enabled for one cycle
+            -- flush will always only stay enabled for one cycle
             flush <= '0';
 
             if rdy = '1' then
