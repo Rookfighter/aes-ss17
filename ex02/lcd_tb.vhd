@@ -86,7 +86,7 @@ begin
 
         -- init sequence takes 41ms
         -- with 24MHz this makes 984000 cycles (24000/ms)
-        wait for clk_period*984001;
+        wait for clk_period*984000;
 
         -- en should always stay on for 8 cycles
         -- rdy should turn 1 here!
