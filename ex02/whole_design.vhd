@@ -102,10 +102,10 @@ begin
             -- flush will always only stay enabled for one cycle
             flush <= '0';
 
-            if rdy = '1' then
+            if rdy = '1' and flush = '0' then
                 -- increment counter whenever LCD is ready again
                 cnt <= cnt + 1;
-                -- flush straight away
+                -- flush input
                 flush <= '1';
             end if;
         end if;
