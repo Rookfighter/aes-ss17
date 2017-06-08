@@ -47,6 +47,8 @@ architecture behavioral of i2c_slave is
     -- sda signal delayed by 1us
     signal sda_del: std_logic := '0';
 
+    signal end_tm: std_logic := '0';
+
 begin
 
     -- delay sda signal by 24 cylces (= 1us)
@@ -68,15 +70,31 @@ begin
             cnt_timeout <= (others => '0');
             dout <= (others => '0');
             rdata <= '0';
+            end_tm <= '0';
         elsif rising_edge(clk) then
             cnt_timeout <= cnt_timeout + 1;
-
             -- whenever we timeout go back to idle state
             if conv_integer(cnt_timeout) = CLKPERMS then
                 state <= SIDLE;
                 sda <= 'Z';
             end if;
 
+            -- check for end transmission condition
+            if scl = '1' then
+                if sda_del = '0' then
+                    -- if scl = 1 and sda = 0 rise end_tm flag
+                    end_tm <= '1';
+                elsif end_tm = '1' then
+                    -- if scl = 1 and sda = 1 and end_tm = 1
+                    -- stop transmission
+                    state <= SIDLE;
+                    sda <= 'Z';
+                end if;
+            else
+                end_tm <= '0';
+            end if;
+
+            -- compute state machine for i2c slave
             case state is
                 when SIDLE =>
                     -- check for i2c start condition
