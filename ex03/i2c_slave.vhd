@@ -34,11 +34,15 @@ architecture behavioral of i2c_slave is
     constant CLKPERMS: natural := 24000;
 
     -- counter for measuring time to timeout after 1ms
-    constant TIMEOUTLEN: natural := 15;
-    signal cnt_timeout: std_logic_vector(TIMEOUTLEN-1 downto 0) := (others => '0');
+    constant TIMEOUTLEN:  natural := 15;
+    signal   cnt_timeout: std_logic_vector(TIMEOUTLEN-1 downto 0) := (others => '0');
 
-    signal dout: std_logic_vector(7 downto 0) := (others => '0');
-    signal rdata: std_logic := '0';
+    -- data vector for handling traffic internally
+    constant DOUTLEN: natural := 8;
+    signal   dout:    std_logic_vector(DOUTLEN-1 downto 0) := (others => '0');
+
+    -- determines if master reqested read (high) or write (low)
+    signal   rdata:   std_logic := '0';
 
     -- sda signal delayed by 1us
     signal sda_del: std_logic := '0';
@@ -54,11 +58,12 @@ begin
                  din => sda,
                  dout => sda_del);
 
-    data <= dout;
-
     process(clk, rst)
     begin
         if rst = RSTDEF then
+            data <= (others => '0');
+            sda <= 'Z';
+            scl <= 'Z';
             state <= SIDLE;
             cnt_timeout <= (others => '0');
             dout <= (others => '0');
@@ -69,6 +74,7 @@ begin
             -- whenever we timeout go back to idle state
             if conv_integer(cnt_timeout) = CLKPERMS then
                 state <= SIDLE;
+                sda <= 'Z';
             end if;
 
             case state is
@@ -90,13 +96,13 @@ begin
                         cnt_timeout <= (others => '0');
 
                         -- shift sda in from the right side
-                        dout <= dout(6 downto 0) & sda_del;
+                        dout <= dout(DOUTLEN-2 downto 0) & sda_del;
 
                         -- if carry bit is 1 then we just received the 8th bit
                         -- (direction bit) for the address (see also SIDLE)
-                        if dout(7) = '1' then
+                        if dout(DOUTLEN-1) = '1' then
                             rdata <= sda_del;
-                            if dout(6 downto 0) = ADDRDEF then
+                            if dout(DOUTLEN-2 downto 0) = ADDRDEF then
                                 -- address matches ours, acknowledge
                                 state <= SACK1;
                             else
@@ -141,10 +147,12 @@ begin
                         cnt_timeout <= (others => '0');
 
                         -- shift sda in from the right side
-                        dout <= dout(6 downto 0) & sda_del;
+                        dout <= dout(DOUTLEN-2 downto 0) & sda_del;
 
-                        if dout(7) = '1' then
+                        if dout(DOUTLEN-1) = '1' then
                             state <= SACK1;
+                            -- apply received byte to out port
+                            data <= dout(DOUTLEN-2 downto 0) & sda_del;
                         end if;
                     end if;
             end case;
