@@ -1,36 +1,36 @@
--- Delay a signal by a given amount of clock cycles.
--- 2015 by Jan Kuehn
+-- delay.vhd
+--
+-- Created on: 08 Jun 2017
+--     Author: Fabian Meyer
+--
+-- Component that delays an input signal by
+-- a given amount of cycles.
 
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
+library ieee;
+use ieee.std_logic_1164.all;
 
 entity delay is
-  generic (
-    delayLength : integer
-  );
-  port (
-    clk, reset, signalIn : in std_logic;
-    signalOut : out std_logic
-  );
-end delay;
+    generic(RSTDEF: std_logic := '0';
+            DELAYLEN: natural := 8);
+    port(rst:  in  std_logic;   -- reset, RSTDEF active
+         clk:  in  std_logic;   -- clock, rising edge
+         din:  in  std_logic;   -- data in
+         dout: out std_logic);  -- data out
+end entity;
 
-architecture Behavioral of delay is
-
-  signal delayReg : std_logic_vector (delayLength - 1 downto 0);
-
+architecture behavioral of delay is
+    -- vector through which signal is chained
+    signal dvec : std_logic_vector (DELAYLEN-1 downto 0) := (others => '0');
 begin
-  process (clk, reset)
-  begin
-    if rising_edge(clk) then
-      if reset = '1' then
-        delayReg <= (others => '1');
-      else
-        delayReg <= delayReg(delayLength - 2 downto 0) & signalIn;
-      end if;
-    end if;
+
+    dout <= dvec(DELAYLEN-1);
+
+    process (rst, clk)
+    begin
+        if rst = RSTDEF then
+            dvec <= (others => '0');
+        elsif rising_edge(clk) then
+            dvec <= dvec(DELAYLEN-2 downto 0) & din;
+        end if;
   end process;
-
-  signalOut <= delayReg(delayLength - 1);
-
-end Behavioral;
-
+end architecture;
