@@ -13,8 +13,8 @@ entity i2c_slave is
     port(rst:  in    std_logic;                       -- reset, RSTDEF active
          clk:  in    std_logic;                       -- clock, rising edge
          data: out   std_logic_vector(7 downto 0);    -- data out, received byte
-         sda:  inout std_logic;
-         scl:  inout std_logic);
+         sda:  inout std_logic;                       -- serial data of I2C
+         scl:  inout std_logic);                      -- serial clock of I2C
 end entity;
 
 architecture behavioral of i2c_slave is
