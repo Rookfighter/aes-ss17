@@ -18,6 +18,15 @@ entity i2c_slave is
 end entity;
 
 architecture behavioral of i2c_slave is
+    component delay
+    generic(RSTDEF: std_logic := '0';
+            DELAYLEN: natural := 8);
+    port(rst:  in  std_logic;   -- reset, RSTDEF active
+         clk:  in  std_logic;   -- clock, rising edge
+         din:  in  std_logic;   -- data in
+         dout: out std_logic);  -- data out
+    end component;
+
     type TState is (SIDLE, SADDR1, SADDR2, SACK1, SACK2, SDATAR1, SDATAR2, SDATAW1, SDATAW2);
     signal state: TState := SIDLE;
 
@@ -31,7 +40,19 @@ architecture behavioral of i2c_slave is
     signal dout: std_logic_vector(7 downto 0) := (others => '0');
     signal rdata: std_logic := '0';
 
+    -- sda signal delayed by 1us
+    signal sda_del: std_logic := '0';
+
 begin
+
+    -- delay sda signal by 24 cylces (= 1us)
+    delay1: delay
+        generic map(RSTDEF => RSTDEF,
+                    DELAYLEN => 24)
+        port map(rst => rst,
+                 clk => clk,
+                 din => sda,
+                 dout => sda_del);
 
     data <= dout;
 
@@ -53,7 +74,7 @@ begin
             case state is
                 when SIDLE =>
                     -- check for i2c start condition
-                    if scl = '1' and sda = '0' then
+                    if scl = '1' and sda_del = '0' then
                         state <= SADDR1;
                         cnt_timeout <= (others => '0');
                         dout <= "00000001";
@@ -69,12 +90,12 @@ begin
                         cnt_timeout <= (others => '0');
 
                         -- shift sda in from the right side
-                        dout <= dout(6 downto 0) & sda;
+                        dout <= dout(6 downto 0) & sda_del;
 
                         -- if carry bit is 1 then we just received the 8th bit
                         -- (direction bit) for the address (see also SIDLE)
                         if dout(7) = '1' then
-                            rdata <= sda;
+                            rdata <= sda_del;
                             if dout(6 downto 0) = ADDRDEF then
                                 -- address matches ours, acknowledge
                                 state <= SACK1;
@@ -120,13 +141,12 @@ begin
                         cnt_timeout <= (others => '0');
 
                         -- shift sda in from the right side
-                        dout <= dout(6 downto 0) & sda;
+                        dout <= dout(6 downto 0) & sda_del;
 
                         if dout(7) = '1' then
                             state <= SACK1;
                         end if;
                     end if;
-
             end case;
         end if;
     end process;
