@@ -41,11 +41,4 @@ entity whole_design is
                  scl => scl);
 
     led <= '1' when data = "01000000" else '0';
-
-    process(rst, clk)
-    begin
-        if rst = RSTDEF then
-            led <= '0';
-        end if;
-    end process;
 end architecture;
