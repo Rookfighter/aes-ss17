@@ -15,26 +15,32 @@ architecture behavior of i2c_slave_tb is
     component i2c_slave
     generic(RSTDEF:  std_logic := '0';
             ADDRDEF: std_logic_vector(6 downto 0) := "0100000");
-    port(rst:  in    std_logic;                       -- reset, RSTDEF active
-         clk:  in    std_logic;                       -- clock, rising edge
-         data: out   std_logic_vector(7 downto 0);    -- data out, received byte
-         sda:  inout std_logic;                       -- serial data of I2C
-         scl:  inout std_logic);                      -- serial clock of I2C
+    port(rst:     in    std_logic;                    -- reset, RSTDEF active
+         clk:     in    std_logic;                    -- clock, rising edge
+         tx_data: in    std_logic_vector(7 downto 0); -- tx, data to send
+         tx_sent: out   std_logic;                    -- tx was sent, high active
+         rx_data: out   std_logic_vector(7 downto 0); -- rx, data received
+         rx_recv: out   std_logic;                    -- rx received, high active
+         sda:     inout std_logic;                    -- serial data of I2C
+         scl:     inout std_logic);                   -- serial clock of I2C
     end component;
 
     --Inputs
-    signal rst : std_logic := '0';
-    signal clk : std_logic := '0';
+    signal rst:     std_logic := '0';
+    signal clk:     std_logic := '0';
+    signal tx_data: std_logic_vector(7 downto 0);
 
     --BiDirs
-    signal sda : std_logic := '1';
-    signal scl : std_logic := '1';
+    signal sda: std_logic := '1';
+    signal scl: std_logic := '1';
 
     --Outputs
-    signal data : std_logic_vector(7 downto 0);
+    signal tx_sent: std_logic;
+    signal rx_data: std_logic_vector(7 downto 0);
+    signal rx_recv: std_logic;
 
     -- Clock period definitions
-    constant clk_period : time := 10 ns;
+    constant clk_period: time := 10 ns;
 
 begin
 
@@ -44,7 +50,10 @@ begin
                     ADDRDEF => "0010111") -- address 0x17
         port map(rst => rst,
                  clk => clk,
-                 data => data,
+                 tx_data => tx_data,
+                 tx_sent => tx_sent,
+                 rx_data => rx_data,
+                 rx_recv => rx_recv,
                  sda => sda,
                  scl => scl);
 
@@ -78,6 +87,14 @@ begin
             wait for clk_period;
         end procedure;
 
+        procedure send_init is
+        begin
+            send_bit('1');
+            -- rise sda without changing clk
+            sda <= '0';
+            wait for 25*clk_period;
+        end procedure;
+
         procedure send_term is
         begin
             send_bit('0');
@@ -91,7 +108,7 @@ begin
         rst <= '1';
 
         -- init transmission
-        send_bit('0');
+        send_init;
 
         -- send address
         send_bit('0'); -- address bit 1
@@ -116,6 +133,8 @@ begin
         send_bit('0'); -- data bit 7
         send_bit('1'); -- data bit 8
 
+        -- rx_data should be "11001101"
+        -- rx_recv should '1' for one cylce
         -- we should receive acknowledge here
         wait_ack; -- release sda
 
@@ -126,7 +145,7 @@ begin
         wait for clk_period*10;
 
         -- init next transmission
-        send_bit('0');
+        send_init;
 
         -- send wrong address 0x13
         send_bit('0'); -- address bit 1
