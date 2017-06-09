@@ -5,19 +5,23 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_unsigned.all;
+use ieee.numeric_std.all;
 
 entity i2c_slave is
     generic(RSTDEF:  std_logic := '0';
             ADDRDEF: std_logic_vector(6 downto 0) := "0100000");
-    port(rst:  in    std_logic;                       -- reset, RSTDEF active
-         clk:  in    std_logic;                       -- clock, rising edge
-         data: out   std_logic_vector(7 downto 0);    -- data out, received byte
-         sda:  inout std_logic;                       -- serial data of I2C
-         scl:  inout std_logic);                      -- serial clock of I2C
+    port(rst:     in    std_logic;                    -- reset, RSTDEF active
+         clk:     in    std_logic;                    -- clock, rising edge
+         tx_data: in    std_logic_vector(7 downto 0); -- tx, data to send
+         tx_sent: out   std_logic;                    -- tx was sent, high active
+         rx_data: out   std_logic_vector(7 downto 0); -- rx, data received
+         rx_recv: out   std_logic;                    -- rx received, high active
+         sda:     inout std_logic;                    -- serial data of I2C
+         scl:     inout std_logic);                   -- serial clock of I2C
 end entity;
 
 architecture behavioral of i2c_slave is
+
     component delay
     generic(RSTDEF: std_logic := '0';
             DELAYLEN: natural := 8);
@@ -27,7 +31,8 @@ architecture behavioral of i2c_slave is
          dout: out std_logic);  -- data out
     end component;
 
-    type TState is (SIDLE, SADDR1, SADDR2, SACK1, SACK2, SDATAR1, SDATAR2, SDATAW1, SDATAW2);
+    -- states for FSM
+    type TState is (SIDLE, SADDR, SSEND_ACK1, SSEND_ACK2, SRECV_ACK, SREAD, SWRITE);
     signal state: TState := SIDLE;
 
     -- constant to define cycles per time unit
@@ -35,21 +40,24 @@ architecture behavioral of i2c_slave is
 
     -- counter for measuring time to timeout after 1ms
     constant TIMEOUTLEN:  natural := 15;
-    signal   cnt_timeout: std_logic_vector(TIMEOUTLEN-1 downto 0) := (others => '0');
+    signal   cnt_timeout: unsigned(TIMEOUTLEN-1 downto 0) := (others => '0');
 
     -- data vector for handling traffic internally
-    constant DOUTLEN: natural := 8;
-    signal   dout:    std_logic_vector(DOUTLEN-1 downto 0) := (others => '0');
+    constant DATALEN: natural := 8;
+    signal   data:    std_logic_vector(DATALEN-1 downto 0) := (others => '0');
 
     -- determines if master reqested read (high) or write (low)
-    signal   rdata:   std_logic := '0';
+    signal rwbit: std_logic := '0';
 
     -- sda signal delayed by 1us
     signal sda_del: std_logic := '0';
-
-    signal end_tm: std_logic := '0';
-
+    signal scl_vec: std_logic_vector(1 downto 0) := (others => '0');
+    signal sda_vec: std_logic_vector(1 downto 0) := (others => '0');
 begin
+
+    scl <= 'Z';
+    scl_vec(0) <= scl;
+    sda_vec(0) <= sda_del;
 
     -- delay sda signal by 24 cylces (= 1us)
     delay1: delay
@@ -63,114 +71,124 @@ begin
     process(clk, rst)
     begin
         if rst = RSTDEF then
-            data <= (others => '0');
+            tx_sent <= '0';
+            rx_data <= (others => '0');
+            rx_recv <= '0';
             sda <= 'Z';
-            scl <= 'Z';
             state <= SIDLE;
             cnt_timeout <= (others => '0');
-            dout <= (others => '0');
-            rdata <= '0';
-            end_tm <= '0';
+            data <= (others => '0');
+            rwbit <= '0';
         elsif rising_edge(clk) then
+            -- keep track of previous sda and scl
+            sda_vec(1) <= sda_vec(0);
+            scl_vec(1) <= scl_vec(0);
+
+            -- leave sent and recv signals high only one cylce
+            tx_sent <= '0';
+            rx_recv <= '0';
+
+            -- check for timeout
             cnt_timeout <= cnt_timeout + 1;
-            -- whenever we timeout go back to idle state
-            if conv_integer(cnt_timeout) = CLKPERMS then
+            if scl_vec = "01" then
+                -- reset timeout on rising scl
+                cnt_timeout <= (others => '0');
+            elsif to_integer(cnt_timeout) = CLKPERMS then
+                -- timeout is reached go into idle state
+                cnt_timeout <= (others => '0');
                 state <= SIDLE;
                 sda <= 'Z';
             end if;
 
-            -- check for end transmission condition
-            if scl = '1' then
-                if sda_del = '0' then
-                    -- if scl = 1 and sda = 0 rise end_tm flag
-                    end_tm <= '1';
-                elsif end_tm = '1' then
-                    -- if scl = 1 and sda = 1 and end_tm = 1
-                    -- stop transmission
-                    state <= SIDLE;
-                    sda <= 'Z';
-                end if;
-            else
-                end_tm <= '0';
+            -- check for i2c stop condition
+            if scl_vec = "11" and sda_vec = "01" then
+                state <= SIDLE;
+                sda <= 'Z';
             end if;
 
             -- compute state machine for i2c slave
             case state is
                 when SIDLE =>
                     -- check for i2c start condition
-                    if scl = '1' and sda_del = '0' then
-                        state <= SADDR1;
-                        cnt_timeout <= (others => '0');
-                        dout <= "00000001";
+                    if scl_vec = "11" and sda_vec = "10" then
+                        state <= SADDR;
+                        data <= "00000001";
                     end if;
-                when SADDR1 =>
-                    if scl = '0' then
-                        state <= SADDR2;
-                        cnt_timeout <= (others => '0');
-                    end if;
-                when SADDR2 =>
-                    if scl = '1' then
-                        state <= SADDR1;
-                        cnt_timeout <= (others => '0');
-
+                when SADDR =>
+                    if scl_vec = "01" then
                         -- shift sda in from the right side
-                        dout <= dout(DOUTLEN-2 downto 0) & sda_del;
+                        data <= data(DATALEN-2 downto 0) & sda_vec(0);
 
                         -- if carry bit is 1 then we just received the 8th bit
-                        -- (direction bit) for the address (see also SIDLE)
-                        if dout(DOUTLEN-1) = '1' then
-                            rdata <= sda_del;
-                            if dout(DOUTLEN-2 downto 0) = ADDRDEF then
+                        -- (direction bit) for the address
+                        if data(DATALEN-1) = '1' then
+                            rwbit <= sda_vec(0);
+                            if data(DATALEN-2 downto 0) = ADDRDEF then
                                 -- address matches ours, acknowledge
-                                state <= SACK1;
+                                state <= SSEND_ACK1;
                             else
                                 -- address doesn't match ours, ignore
                                 state <= SIDLE;
                             end if;
                         end if;
                     end if;
-                when SACK1 =>
-                    if scl = '0' then
-                        state <= SACK2;
-                        cnt_timeout <= (others => '0');
+                when SSEND_ACK1 =>
+                    if scl_vec = "10" then
+                        state <= SSEND_ACK2;
                         sda <= '0';
                     end if;
-                when SACK2 =>
-                    if scl = '1' then
-                        cnt_timeout <= (others => '0');
+                when SSEND_ACK2 =>
+                    if scl_vec = "10" then
                         -- check if master requested read or write
-                        if rdata = '1' then
+                        if rwbit = '1' then
                             -- master wants to read
-                            state <= SDATAR1;
+                            sda <= tx_data(7); -- write first bit on bus
+                            data <= tx_data(6 downto 0) & '1';
+                            state <= SREAD;
                         else
                             -- master wants to write
-                            state <= SDATAW1;
-                            dout <= "00000001";
+                            sda <= 'Z'; -- release sda
+                            data <= "00000001";
+                            state <= SWRITE;
                         end if;
                     end if;
-                when SDATAR1 =>
-                    -- TODO not implemented
-                when SDATAR2 =>
-                    -- TODO not implemented
-                when SDATAW1 =>
-                    if scl = '0' then
-                        state <= SDATAW2;
-                        cnt_timeout <= (others => '0');
-                        -- release sda
-                        sda <= 'Z';
+                when SRECV_ACK =>
+                    if scl_vec = "01" then
+                        -- check for ack
+                        if sda_vec(0) /= '0' then
+                            -- no ack received
+                            state <= SIDLE;
+                        end if;
+                    elsif scl_vec = "10" then
+                        -- continue read
+                        sda <= tx_data(7); -- write first bit on bus
+                        data <= tx_data(6 downto 0) & '1';
+                        state <= SREAD;
                     end if;
-                when SDATAW2 =>
-                    if scl = '1' then
-                        state <= SDATAW1;
-                        cnt_timeout <= (others => '0');
+                when SREAD =>
+                    if scl_vec = "10" then
+                        sda <= data(7);
+                        data <= data(6 downto 0) & '0';
 
+                        -- if carry bit is 1 then we have sent everything
+                        -- data is not allowed to contain any 1, only Z or 0
+                        if data(7) = '1' then
+                            sda <= 'Z';
+                            state <= SRECV_ACK;
+                            tx_sent <= '1';
+                        end if;
+                    end if;
+                when SWRITE =>
+                    if scl_vec = "01" then
                         -- shift sda in from the right side
-                        dout <= dout(DOUTLEN-2 downto 0) & sda_del;
+                        data <= data(DATALEN-2 downto 0) & sda_vec(0);
 
-                        if dout(DOUTLEN-1) = '1' then
-                            state <= SACK1;
+                        -- if carry bit is 1 then we just received the 8th bit
+                        if data(DATALEN-1) = '1' then
+                            state <= SSEND_ACK1;
                             -- apply received byte to out port
-                            data <= dout(DOUTLEN-2 downto 0) & sda_del;
+                            rx_data <= data(DATALEN-2 downto 0) & sda_vec(0);
+                            rx_recv <= '1';
                         end if;
                     end if;
             end case;

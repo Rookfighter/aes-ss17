@@ -20,11 +20,14 @@ entity whole_design is
     component i2c_slave
     generic(RSTDEF:  std_logic := '0';
             ADDRDEF: std_logic_vector(6 downto 0) := "0100000");
-    port(rst:  in    std_logic;                       -- reset, RSTDEF active
-         clk:  in    std_logic;                       -- clock, rising edge
-         data: out   std_logic_vector(7 downto 0);    -- data out, received byte
-         sda:  inout std_logic;                       -- serial data of I2C
-         scl:  inout std_logic);                      -- serial clock of I2C
+    port(rst:     in    std_logic;                    -- reset, RSTDEF active
+         clk:     in    std_logic;                    -- clock, rising edge
+         tx_data: in    std_logic_vector(7 downto 0); -- tx, data to send
+         tx_sent: out   std_logic;                    -- tx was sent, high active
+         rx_data: out   std_logic_vector(7 downto 0); -- rx, data received
+         rx_recv: out   std_logic;                    -- rx received, high active
+         sda:     inout std_logic;                    -- serial data of I2C
+         scl:     inout std_logic);                   -- serial clock of I2C
     end component;
 
     signal data: std_logic_vector(7 downto 0) := (others => '0');
@@ -36,7 +39,10 @@ entity whole_design is
                     ADDRDEF => "0100000")
         port map(rst => rst,
                  clk => clk,
-                 data => data,
+                 tx_data => "00000000",
+                 tx_sent => open,
+                 rx_data => data,
+                 rx_recv => open,
                  sda => sda,
                  scl => scl);
 
