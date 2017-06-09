@@ -28,7 +28,7 @@ architecture behavior of i2c_slave_tb is
     --Inputs
     signal rst:     std_logic := '0';
     signal clk:     std_logic := '0';
-    signal tx_data: std_logic_vector(7 downto 0);
+    signal tx_data: std_logic_vector(7 downto 0) := (others => '0');
 
     --BiDirs
     signal sda: std_logic := '1';

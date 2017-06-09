@@ -79,6 +79,8 @@ begin
             cnt_timeout <= (others => '0');
             data <= (others => '0');
             rwbit <= '0';
+            scl_vec(1) <= '0';
+            sda_vec(1) <= '0';
         elsif rising_edge(clk) then
             -- keep track of previous sda and scl
             sda_vec(1) <= sda_vec(0);
