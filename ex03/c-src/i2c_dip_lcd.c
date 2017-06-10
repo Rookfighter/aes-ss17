@@ -100,6 +100,7 @@ int main(int argc, char * argv[]) {
     uint8_t wr_buf[LCDLEN+1];
     uint8_t rd_buf[1];
     int ret;
+    int i;
 
     ret = i2c_init();
     if(ret)
@@ -126,13 +127,25 @@ int main(int argc, char * argv[]) {
 
         // send write command to 
         printf("Sending \"%s\" to slave ...\n", (char*) wr_buf);
-        ret = i2c_read_write(SLV_ADDR,
+        for(i = 0; i < LCDLEN; ++i)
+        {
+            ret = i2c_read_write(SLV_ADDR,
+                &wr_buf[i], 1,
+                NULL, 0);
+                
+            if(ret)
+            {
+                fprintf(stderr, "Failed to write byte %d: %s\n", i + 1 ,strerror(errno));
+                break;
+            }
+        }
+        /*ret = i2c_read_write(SLV_ADDR,
             wr_buf, LCDLEN,
             NULL, 0);
         if(ret)
         {
             fprintf(stderr, "Failed to write I2C: %s\n", strerror(errno));
-        }
+        }*/
 
         sleep(3);
     }
