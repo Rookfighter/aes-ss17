@@ -38,7 +38,7 @@ entity whole_design is
          sda:     inout std_logic;                    -- serial data of I2C
          scl:     inout std_logic);                   -- serial clock of I2C
     end component;
-    
+
     -- import lcd component
     component lcd
     generic(RSTDEF: std_logic := '0');
@@ -60,40 +60,45 @@ entity whole_design is
     signal pos_cnt:   unsigned(4 downto 0) := (others => '1');
     signal lcd_posx:  std_logic_vector(3 downto 0) := (others => '0');
     signal lcd_posy:  std_logic := '0';
-    
+
     signal rx_data: std_logic_vector(7 downto 0) := (others => '0');
     signal rx_recv: std_logic := '0';
-    
-    constant BUFLEN:   natural := 256; 
+
+    constant BUFLEN:   natural := 256;
     signal   cbuf:      std_logic_vector(BUFLEN-1 downto 0) := (others => '0');
-    
+
     signal i2c_rdy:   std_logic := '0';
-    
+
     signal lcd_din:   std_logic_vector(7 downto 0) := (others => '0');
     signal lcd_flush: std_logic := '0';
     signal lcd_rdy:   std_logic := '0';
-
+    signal dip_z:     std_logic_vector(7 downto 0) := (others => '0');
  begin
- 
+
     led <= not rst;
     -- lower bits of pos_cnt define x position of character to write
     lcd_posx <= std_logic_vector(pos_cnt(3 downto 0));
     -- carry bit of pos_cnt defines line
     lcd_posy <= std_logic(pos_cnt(4));
 
+    gen_conv:
+    for i in 0 to 7 generate
+        dip_z(i) <= 'Z' when dip(i) = '1' else '0';
+    end generate;
+
     slave1: i2c_slave
         generic map(RSTDEF  => RSTDEF,
                     ADDRDEF => "0100000")
         port map(rst     => rst,
                  clk     => clk,
-                 tx_data => dip,
+                 tx_data => dip_z,
                  tx_sent => open,
                  rx_data => rx_data,
                  rx_recv => rx_recv,
                  rdy     => i2c_rdy,
                  sda     => sda,
                  scl     => scl);
-                 
+
     lcd1: lcd
         generic map(RSTDEF  => RSTDEF)
         port map (rst   => rst,
@@ -108,7 +113,7 @@ entity whole_design is
                   rs    => lcd_rs,
                   bl    => lcd_bl,
                   data  => lcd_data);
-                  
+
     process(rst, clk)
     begin
         if rst = RSTDEF then
@@ -119,7 +124,7 @@ entity whole_design is
         elsif rising_edge(clk) then
             -- always reset flush after one cycle
             lcd_flush <= '0';
-         
+
             -- check if i2c is ready (i.e. not busy)
             if i2c_rdy = '1' then
                 -- check if lcd is ready and we are not currently flushing
@@ -143,5 +148,5 @@ entity whole_design is
             end if;
         end if;
     end process;
-    
+
 end architecture;

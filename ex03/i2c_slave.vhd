@@ -52,6 +52,7 @@ architecture behavioral of i2c_slave is
 
     -- sda signal delayed by 1us
     signal sda_del: std_logic := '0';
+    -- i2c vectors to store previous and current signal
     signal scl_vec: std_logic_vector(1 downto 0) := (others => '0');
     signal sda_vec: std_logic_vector(1 downto 0) := (others => '0');
 begin
