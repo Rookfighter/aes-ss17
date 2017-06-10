@@ -1,19 +1,10 @@
 
-# PlanAhead Generated physical constraints
+# PlanAhead Generated physical constraints 
 
 NET "clk" LOC = M21;
-NET "led" LOC = D24;
 NET "rst" LOC = AE24;
 NET "scl" LOC = V17;
 NET "sda" LOC = U17;
-NET "lcd_data[3]" LOC = T18;
-NET "lcd_data[2]" LOC = D18;
-NET "lcd_data[1]" LOC = V18;
-NET "lcd_data[0]" LOC = W18;
-NET "lcd_bl" LOC = AD24;
-NET "lcd_en" LOC = D21;
-NET "lcd_rs" LOC = F24;
-NET "lcd_rw" LOC = C21;
 NET "dip[0]" LOC = W19;
 NET "dip[1]" LOC = Y24;
 NET "dip[2]" LOC = K19;
@@ -22,3 +13,11 @@ NET "dip[4]" LOC = U20;
 NET "dip[5]" LOC = U23;
 NET "dip[6]" LOC = U24;
 NET "dip[7]" LOC = U19;
+NET "led[0]" LOC = N24;
+NET "led[1]" LOC = N23;
+NET "led[2]" LOC = M24;
+NET "led[3]" LOC = L24;
+NET "led[4]" LOC = L23;
+NET "led[5]" LOC = K24;
+NET "led[6]" LOC = H24;
+NET "led[7]" LOC = D24;
