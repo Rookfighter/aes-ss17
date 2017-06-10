@@ -55,11 +55,18 @@ architecture behavioral of i2c_slave is
     -- i2c vectors to store previous and current signal
     signal scl_vec: std_logic_vector(1 downto 0) := (others => '0');
     signal sda_vec: std_logic_vector(1 downto 0) := (others => '0');
+    
+    -- counter to count bits received / sent
+    signal cnt_bit: unsigned(2 downto 0) := (others => '0');
 begin
 
+    -- always let master handle scl
     scl <= 'Z';
+    -- lsb is current scl
     scl_vec(0) <= scl;
+    -- lsb is delayed sda
     sda_vec(0) <= sda_del;
+    -- ready only when in idle state
     rdy <= '1' when state = SIDLE else '0';
 
     -- delay sda signal by 24 cylces (= 1us)
@@ -84,8 +91,9 @@ begin
             rwbit <= '0';
             scl_vec(1) <= '0';
             sda_vec(1) <= '0';
+            cnt_bit <= (others => '0');
         elsif rising_edge(clk) then
-            -- keep track of previous sda and scl
+            -- keep track of previous sda and scl (msb)
             sda_vec(1) <= sda_vec(0);
             scl_vec(1) <= scl_vec(0);
 
@@ -117,18 +125,18 @@ begin
                     -- check for i2c start condition
                     if scl_vec = "11" and sda_vec = "10" then
                         state <= SADDR;
-                        data <= "00000001";
+                        cnt_bit <= (others => '0');
                     end if;
                 when SADDR =>
                     if scl_vec = "01" then
-                        -- shift sda in from the right side
-                        data <= data(DATALEN-2 downto 0) & sda_vec(0);
+                        -- set data bit depending on cnt_bit
+                        data(7-to_integer(cnt_bit)) <= sda_vec(0);
+                        cnt_bit <= cnt_bit + 1;
 
-                        -- if carry bit is 1 then we just received the 8th bit
-                        -- (direction bit) for the address
-                        if data(DATALEN-1) = '1' then
+                        -- if cnt_bit is full then we have just received last bit
+                        if cnt_bit = "111" then
                             rwbit <= sda_vec(0);
-                            if data(DATALEN-2 downto 0) = ADDRDEF then
+                            if data(DATALEN-1 downto 1) = ADDRDEF then
                                 -- address matches ours, acknowledge
                                 state <= SSEND_ACK1;
                             else
@@ -148,12 +156,14 @@ begin
                         if rwbit = '1' then
                             -- master wants to read
                             sda <= tx_data(7); -- write first bit on bus
-                            data <= tx_data(6 downto 0) & '1';
+                            data <= tx_data;
+                            -- start from one because we already wrote first bit
+                            cnt_bit <= "001";
                             state <= SREAD;
                         else
                             -- master wants to write
                             sda <= 'Z'; -- release sda
-                            data <= "00000001";
+                            cnt_bit <= (others => '0');
                             state <= SWRITE;
                         end if;
                     end if;
@@ -173,30 +183,32 @@ begin
                     elsif scl_vec = "10" then
                         -- continue read
                         sda <= tx_data(7); -- write first bit on bus
-                        data <= tx_data(6 downto 0) & '1';
+                        data <= tx_data;
+                        -- start from one because we already wrote first bit
+                        cnt_bit <= "001";
                         state <= SREAD;
                     end if;
                 when SREAD =>
                     if scl_vec = "10" then
-                        sda <= data(7);
-                        data <= data(6 downto 0) & '0';
+                        sda <= data(7-to_integer(cnt_bit));
+                        cnt_bit <= cnt_bit + 1;
 
-                        -- if carry bit is 1 then we just put last bit on bus
+                        -- if cnt_bit is full we just put last bit on bus
                         -- note: data is not allowed to contain any 1, only Z or 0
-                        if data(7) = '1' then
+                        if cnt_bit = "111" then
                             state <= SRECV_ACK1;
                         end if;
                     end if;
                 when SWRITE =>
                     if scl_vec = "01" then
-                        -- shift sda in from the right side
-                        data <= data(DATALEN-2 downto 0) & sda_vec(0);
+                        data(7-to_integer(cnt_bit)) <= sda_vec(0);
+                        cnt_bit <= cnt_bit + 1;
 
-                        -- if carry bit is 1 then we just received the 8th bit
-                        if data(DATALEN-1) = '1' then
+                        -- if cnt_bit is full we have just revceived the last bit
+                        if cnt_bit = "111" then
                             state <= SSEND_ACK1;
                             -- apply received byte to out port
-                            rx_data <= data(DATALEN-2 downto 0) & sda_vec(0);
+                            rx_data <= data(DATALEN-1 downto 1) & sda_vec(0);
                             rx_recv <= '1';
                         end if;
                     end if;
