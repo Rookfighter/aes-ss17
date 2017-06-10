@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <sys/ioctl.h>
@@ -27,10 +28,11 @@
 // The bus to use.
 #define TWSI_BUS "/dev/twsi0"
 
-#define LCDLEN 32
+#define LCDLEN 3
 #define SLV_ADDR 0x20
 
-int twsi_device = -1;
+static int twsi_device = -1;
+static int keep_running = 1;
 
 // Set the I2C speed to the given speed.
 // Please have a look at i2c.h:19ff for valid speeds.
@@ -96,11 +98,22 @@ int i2c_close () {
     return 0;
 }
 
+void sig_handler(int signo)
+{
+    printf("Shutting down ...\n");
+    keep_running = 0;
+}
+
 int main(int argc, char * argv[]) {
     uint8_t wr_buf[LCDLEN+1];
     uint8_t rd_buf[1];
     int ret;
     int i;
+    
+    signal(SIGINT, sig_handler);
+    signal(SIGTERM, sig_handler);
+    signal(SIGKILL, sig_handler);
+    signal(SIGSTOP, sig_handler);
 
     ret = i2c_init();
     if(ret)
@@ -109,47 +122,40 @@ int main(int argc, char * argv[]) {
         return 1;
     }
 
-    while(1) {
-        // first read current value of DIP switches
-        ret = i2c_read_write(SLV_ADDR,
-            NULL, 0,
-            rd_buf, 1);
+    // first read current value of DIP switches
+    /*ret = i2c_read_write(SLV_ADDR,
+        NULL, 0,
+        rd_buf, 1);
 
-        if(ret)
-        {
-            fprintf(stderr, "Failed to read I2C: %s\n", strerror(errno));
-            sleep(3);
-            continue;
-        }
-
-        // print output text into wr:buf
-        snprintf((char*) wr_buf, LCDLEN+1, "Your input is 0x%02x.             ", *rd_buf);
-
-        // send write command to 
-        printf("Sending \"%s\" to slave ...\n", (char*) wr_buf);
-        for(i = 0; i < LCDLEN; ++i)
-        {
-            ret = i2c_read_write(SLV_ADDR,
-                &wr_buf[i], 1,
-                NULL, 0);
-                
-            if(ret)
-            {
-                fprintf(stderr, "Failed to write byte %d: %s\n", i + 1 ,strerror(errno));
-                break;
-            }
-        }
-        /*ret = i2c_read_write(SLV_ADDR,
-            wr_buf, LCDLEN,
-            NULL, 0);
-        if(ret)
-        {
-            fprintf(stderr, "Failed to write I2C: %s\n", strerror(errno));
-        }*/
-
+    if(ret)
+    {
+        fprintf(stderr, "Failed to read I2C: %s\n", strerror(errno));
         sleep(3);
-    }
+        continue;
+    }*/
+
+    // print output text into wr_buf
+    snprintf((char*) wr_buf, LCDLEN+1, "Your input is 0x%02x.             ", 0x12);
+
+    // send write command to 
+    printf("Sending \"%s\" to slave ...\n", (char*) wr_buf);
+    /*for(i = 0; i < LCDLEN; ++i)
+    {
+        ret = i2c_read_write(SLV_ADDR,
+            &wr_buf[i], 1,
+            NULL, 0);
+        
+        if(ret)
+        {
+            fprintf(stderr, "Failed to write byte %d: %s\n", i + 1 ,strerror(errno));
+            break;
+        }
+    }*/
+    ret = i2c_read_write(SLV_ADDR,
+        wr_buf, LCDLEN,
+        NULL, 0);
     
     i2c_close();
+    
     return 0;
 }
