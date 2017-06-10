@@ -33,7 +33,7 @@ architecture behavioral of i2c_slave is
     end component;
 
     -- states for FSM
-    type TState is (SIDLE, SADDR, SSEND_ACK1, SSEND_ACK2, SRECV_ACK, SREAD, SWRITE);
+    type TState is (SIDLE, SADDR, SSEND_ACK1, SSEND_ACK2, SRECV_ACK1, SRECV_ACK2, SREAD, SWRITE);
     signal state: TState := SIDLE;
 
     -- constant to define cycles per time unit
@@ -65,7 +65,7 @@ begin
     -- delay sda signal by 24 cylces (= 1us)
     delay1: delay
         generic map(RSTDEF => RSTDEF,
-                    DELAYLEN => 24)
+                    DELAYLEN => 26)
         port map(rst => rst,
                  clk => clk,
                  din => sda,
@@ -157,7 +157,13 @@ begin
                             state <= SWRITE;
                         end if;
                     end if;
-                when SRECV_ACK =>
+                when SRECV_ACK1 =>
+                    if scl_vec = "10" then
+                        sda <= 'Z';
+                        state <= SRECV_ACK2;
+                        tx_sent <= '1';
+                    end if;
+                when SRECV_ACK2 =>
                     if scl_vec = "01" then
                         -- check for ack
                         if sda_vec(0) /= '0' then
@@ -175,12 +181,10 @@ begin
                         sda <= data(7);
                         data <= data(6 downto 0) & '0';
 
-                        -- if carry bit is 1 then we have sent everything
-                        -- data is not allowed to contain any 1, only Z or 0
+                        -- if carry bit is 1 then we just put last bit on bus
+                        -- note: data is not allowed to contain any 1, only Z or 0
                         if data(7) = '1' then
-                            sda <= 'Z';
-                            state <= SRECV_ACK;
-                            tx_sent <= '1';
+                            state <= SRECV_ACK1;
                         end if;
                     end if;
                 when SWRITE =>
