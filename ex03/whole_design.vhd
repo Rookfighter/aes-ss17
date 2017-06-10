@@ -5,18 +5,26 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 entity whole_design is
     generic(RSTDEF: std_logic := '0');
-    port(rst: in    std_logic;   -- reset, RSTDEF active
-         clk: in    std_logic;   -- clock, rising edge
-         led: out   std_logic;   -- led, high active
-         sda: inout std_logic;   -- serial data of I2C
-         scl: inout std_logic);  -- serial clock of I2C
+    port(rst:      in    std_logic;                     -- reset, RSTDEF active
+         clk:      in    std_logic;                     -- clock, rising edge
+         dip:      in    std_logic_vector(7 downto 0);
+         lcd_en:   out   std_logic;                     -- enable, high active
+         lcd_rw:   out   std_logic;
+         lcd_rs:   out   std_logic;
+         lcd_bl:   out   std_logic;
+         led:      out   std_logic;                     -- led, high active
+         lcd_data: inout std_logic_vector(3 downto 0);  -- data, dual direction
+         sda:      inout std_logic;                     -- serial data of I2C
+         scl:      inout std_logic);                    -- serial clock of I2C
  end entity;
 
  architecture behavioral of whole_design is
 
+    -- import i2c slave
     component i2c_slave
     generic(RSTDEF:  std_logic := '0';
             ADDRDEF: std_logic_vector(6 downto 0) := "0100000");
@@ -29,22 +37,97 @@ entity whole_design is
          sda:     inout std_logic;                    -- serial data of I2C
          scl:     inout std_logic);                   -- serial clock of I2C
     end component;
+    
+    -- import lcd component
+    component lcd
+    generic(RSTDEF: std_logic := '0');
+    port(rst:   in    std_logic;                       -- reset, RSTDEF active
+         clk:   in    std_logic;                       -- clock, rising edge
+         din:   in    std_logic_vector(7 downto 0);    -- data in, 8 bit ASCII char
+         posx:  in    std_logic_vector(3 downto 0);    -- x position within a line of LCD
+         posy:  in    std_logic;                       -- y position (line number)
+         flush: in    std_logic;                       -- flush input, high active
+         rdy:   out   std_logic;                       -- ready, high active
+         en:    out   std_logic;                       -- enable, high active
+         rw:    out   std_logic;
+         rs:    out   std_logic;
+         bl:    out   std_logic;                       -- backlight, high active
+         data:  inout std_logic_vector(3 downto 0));   -- data, dual direction
+    end component;
 
-    signal data: std_logic_vector(7 downto 0) := (others => '0');
+    -- counter which splits into x and y pos
+    signal cnt:   unsigned(4 downto 0) := (others => '1');
+    signal lcd_posx:  std_logic_vector(3 downto 0) := (others => '0');
+    signal lcd_posy:  std_logic := '0';
+    
+    signal rx_data: std_logic_vector(7 downto 0) := (others => '0');
+    signal rx_recv: std_logic := '0';
+    
+    signal char:     std_logic_vector(7 downto 0) := (others => '0');
+    signal new_char: std_logic := '0';
+    
+    signal lcd_din:   std_logic_vector(7 downto 0) := (others => '0');
+    signal lcd_flush: std_logic := '0';
+    signal lcd_rdy:   std_logic := '0';
 
  begin
+ 
+    led <= not rst;
+    -- lower bits of cnt define x position of character to write
+    lcd_posx <= std_logic_vector(cnt(3 downto 0));
+    -- carry bit of cnt defines line
+    lcd_posy <= std_logic(cnt(4));
 
     slave1: i2c_slave
         generic map(RSTDEF  => RSTDEF,
                     ADDRDEF => "0100000")
-        port map(rst => rst,
-                 clk => clk,
-                 tx_data => "00000000",
+        port map(rst     => rst,
+                 clk     => clk,
+                 tx_data => dip,
                  tx_sent => open,
-                 rx_data => data,
-                 rx_recv => open,
-                 sda => sda,
-                 scl => scl);
-
-    led <= '1' when data = "01000000" else '0';
+                 rx_data => rx_data,
+                 rx_recv => rx_recv,
+                 sda     => sda,
+                 scl     => scl);
+                 
+    lcd1: lcd
+        generic map(RSTDEF  => RSTDEF)
+        port map (rst   => rst,
+                  clk   => clk,
+                  din   => lcd_din,
+                  posx  => lcd_posx,
+                  posy  => lcd_posy,
+                  flush => lcd_flush,
+                  rdy   => lcd_rdy,
+                  en    => lcd_en,
+                  rw    => lcd_rw,
+                  rs    => lcd_rs,
+                  bl    => lcd_bl,
+                  data  => lcd_data);
+                  
+    process(rst, clk)
+    begin
+        if rst = RSTDEF then
+            cnt <= (others => '1');
+            char <= (others => '0');
+            new_char <= '0';
+        elsif rising_edge(clk) then
+            -- check if we received new character
+            if rx_recv = '1' then
+                char <= rx_data;
+                new_char <= '1';
+                cnt <= cnt + 1;
+            end if;
+            
+            -- check if we should write a new char to lcd
+            if new_char = '1' and
+               lcd_rdy = '1' and
+               lcd_flush = '0' then
+                lcd_din <= char;
+                lcd_flush <= '1';
+                new_char <= '0';
+            end if;
+        end if;
+    end process;
+    
 end architecture;
