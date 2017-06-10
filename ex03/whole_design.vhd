@@ -58,6 +58,7 @@ entity whole_design is
 
     -- counter which splits into x and y pos
     signal pos_cnt:   unsigned(4 downto 0) := (others => '1');
+    signal bit_cnt:   unsigned(7 downto 0);
     signal lcd_posx:  std_logic_vector(3 downto 0) := (others => '0');
     signal lcd_posy:  std_logic := '0';
 
@@ -65,11 +66,11 @@ entity whole_design is
     signal rx_recv: std_logic := '0';
 
     constant BUFLEN:   natural := 256;
-    signal   cbuf:      std_logic_vector(BUFLEN-1 downto 0) := (others => '0');
+    signal   cbuf:     std_logic_vector(BUFLEN-1 downto 0) := (others => '0');
 
     signal i2c_rdy:   std_logic := '0';
 
-    signal lcd_din:   std_logic_vector(7 downto 0) := (others => '0');
+    signal lcd_din:   std_logic_vector(7 downto 0);
     signal lcd_flush: std_logic := '0';
     signal lcd_rdy:   std_logic := '0';
     signal dip_z:     std_logic_vector(7 downto 0) := (others => '0');
@@ -85,6 +86,10 @@ entity whole_design is
     for i in 0 to 7 generate
         dip_z(i) <= 'Z' when dip(i) = '1' else '0';
     end generate;
+    
+    -- append 3 zeros to multiply by 8
+    bit_cnt <= pos_cnt & "000";
+    lcd_din <= cbuf(BUFLEN-to_integer(bit_cnt)-1 downto BUFLEN-to_integer(bit_cnt)-8);
 
     slave1: i2c_slave
         generic map(RSTDEF  => RSTDEF,
@@ -117,7 +122,6 @@ entity whole_design is
     process(rst, clk)
     begin
         if rst = RSTDEF then
-            lcd_din <= (others => '0');
             lcd_flush <= '0';
             pos_cnt <= (others => '1');
             cbuf <= (others => '0');
@@ -130,10 +134,6 @@ entity whole_design is
                 -- check if lcd is ready and we are not currently flushing
                 if lcd_rdy   = '1' and
                    lcd_flush = '0' then
-                    -- apply most left byte to lcd
-                    lcd_din <= cbuf(BUFLEN-1 downto BUFLEN-8);
-                    -- circle through buffer
-                    cbuf <= cbuf(BUFLEN-9 downto 0) & cbuf(BUFLEN-1 downto BUFLEN-8);
                     -- increment position
                     pos_cnt <= pos_cnt + 1;
                     -- flush current input
