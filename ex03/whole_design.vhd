@@ -34,6 +34,7 @@ entity whole_design is
          tx_sent: out   std_logic;                    -- tx was sent, high active
          rx_data: out   std_logic_vector(7 downto 0); -- rx, data received
          rx_recv: out   std_logic;                    -- rx received, high active
+         rdy:     out   std_logic;                    -- ready, high active
          sda:     inout std_logic;                    -- serial data of I2C
          scl:     inout std_logic);                   -- serial clock of I2C
     end component;
@@ -56,15 +57,17 @@ entity whole_design is
     end component;
 
     -- counter which splits into x and y pos
-    signal cnt:   unsigned(4 downto 0) := (others => '1');
+    signal pos_cnt:   unsigned(4 downto 0) := (others => '1');
     signal lcd_posx:  std_logic_vector(3 downto 0) := (others => '0');
     signal lcd_posy:  std_logic := '0';
     
     signal rx_data: std_logic_vector(7 downto 0) := (others => '0');
     signal rx_recv: std_logic := '0';
     
-    signal char:     std_logic_vector(7 downto 0) := (others => '0');
-    signal new_char: std_logic := '0';
+    constant BUFLEN:   natural := 256; 
+    signal   cbuf:      std_logic_vector(BUFLEN-1 downto 0) := (others => '0');
+    
+    signal i2c_rdy:   std_logic := '0';
     
     signal lcd_din:   std_logic_vector(7 downto 0) := (others => '0');
     signal lcd_flush: std_logic := '0';
@@ -73,10 +76,10 @@ entity whole_design is
  begin
  
     led <= not rst;
-    -- lower bits of cnt define x position of character to write
-    lcd_posx <= std_logic_vector(cnt(3 downto 0));
-    -- carry bit of cnt defines line
-    lcd_posy <= std_logic(cnt(4));
+    -- lower bits of pos_cnt define x position of character to write
+    lcd_posx <= std_logic_vector(pos_cnt(3 downto 0));
+    -- carry bit of pos_cnt defines line
+    lcd_posy <= std_logic(pos_cnt(4));
 
     slave1: i2c_slave
         generic map(RSTDEF  => RSTDEF,
@@ -87,6 +90,7 @@ entity whole_design is
                  tx_sent => open,
                  rx_data => rx_data,
                  rx_recv => rx_recv,
+                 rdy     => i2c_rdy,
                  sda     => sda,
                  scl     => scl);
                  
@@ -108,24 +112,34 @@ entity whole_design is
     process(rst, clk)
     begin
         if rst = RSTDEF then
-            cnt <= (others => '1');
-            char <= (others => '0');
-            new_char <= '0';
+            lcd_din <= (others => '0');
+            lcd_flush <= '0';
+            pos_cnt <= (others => '1');
+            cbuf <= (others => '0');
         elsif rising_edge(clk) then
-            -- check if we received new character
-            if rx_recv = '1' then
-                char <= rx_data;
-                new_char <= '1';
-                cnt <= cnt + 1;
-            end if;
-            
-            -- check if we should write a new char to lcd
-            if new_char = '1' and
-               lcd_rdy = '1' and
-               lcd_flush = '0' then
-                lcd_din <= char;
-                lcd_flush <= '1';
-                new_char <= '0';
+            -- always reset flush after one cycle
+            lcd_flush <= '0';
+         
+            -- check if i2c is ready (i.e. not busy)
+            if i2c_rdy = '1' then
+                -- check if lcd is ready and we are not currently flushing
+                if lcd_rdy   = '1' and
+                   lcd_flush = '0' then
+                    -- apply most left byte to lcd
+                    lcd_din <= cbuf(BUFLEN-1 downto BUFLEN-8);
+                    -- circle through buffer
+                    cbuf <= cbuf(BUFLEN-9 downto 0) & cbuf(BUFLEN-1 downto BUFLEN-8);
+                    -- increment position
+                    pos_cnt <= pos_cnt + 1;
+                    -- flush current input
+                    lcd_flush <= '1';
+                end if;
+            -- check if we received a new byte
+            elsif rx_recv = '1' then
+                -- shift incoming data into buffer from the right side
+                cbuf <= cbuf(BUFLEN-9 downto 0) & rx_data;
+                -- reset position counter for lcd
+                pos_cnt <= (others => '1');
             end if;
         end if;
     end process;

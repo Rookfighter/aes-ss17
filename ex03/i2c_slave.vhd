@@ -16,6 +16,7 @@ entity i2c_slave is
          tx_sent: out   std_logic;                    -- tx was sent, high active
          rx_data: out   std_logic_vector(7 downto 0); -- rx, data received
          rx_recv: out   std_logic;                    -- rx received, high active
+         rdy:     out   std_logic;                    -- ready, high active
          sda:     inout std_logic;                    -- serial data of I2C
          scl:     inout std_logic);                   -- serial clock of I2C
 end entity;
@@ -58,6 +59,7 @@ begin
     scl <= 'Z';
     scl_vec(0) <= scl;
     sda_vec(0) <= sda_del;
+    rdy <= '1' when state = SIDLE else '0';
 
     -- delay sda signal by 24 cylces (= 1us)
     delay1: delay
