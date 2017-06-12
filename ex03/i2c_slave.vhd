@@ -16,7 +16,7 @@ entity i2c_slave is
          tx_sent: out   std_logic;                    -- tx was sent, high active
          rx_data: out   std_logic_vector(7 downto 0); -- rx, data received
          rx_recv: out   std_logic;                    -- rx received, high active
-         rdy:     out   std_logic;                    -- ready, high active
+         busy:    out   std_logic;                    -- busy, high active
          sda:     inout std_logic;                    -- serial data of I2C
          scl:     inout std_logic);                   -- serial clock of I2C
 end entity;
@@ -33,7 +33,7 @@ architecture behavioral of i2c_slave is
     end component;
 
     -- states for FSM
-    type TState is (SIDLE, SADDR, SSEND_ACK1, SSEND_ACK2, SRECV_ACK1, SRECV_ACK2, SREAD, SWRITE);
+    type TState is (SIDLE, SADDR, SSEND_ACK1, SSEND_ACK2, SRECV_ACK, SREAD, SWRITE);
     signal state: TState := SIDLE;
 
     -- constant to define cycles per time unit
@@ -55,7 +55,7 @@ architecture behavioral of i2c_slave is
     -- i2c vectors to store previous and current signal
     signal scl_vec: std_logic_vector(1 downto 0) := (others => '0');
     signal sda_vec: std_logic_vector(1 downto 0) := (others => '0');
-    
+
     -- counter to count bits received / sent
     signal cnt_bit: unsigned(2 downto 0) := (others => '0');
 begin
@@ -66,13 +66,13 @@ begin
     scl_vec(0) <= scl;
     -- lsb is delayed sda
     sda_vec(0) <= sda_del;
-    -- ready only when in idle state
-    rdy <= '1' when state = SIDLE else '0';
+    -- always busy if not in idle mode
+    busy <= '0' when state = SIDLE else '1';
 
     -- delay sda signal by 24 cylces (= 1us)
     delay1: delay
         generic map(RSTDEF => RSTDEF,
-                    DELAYLEN => 26)
+                    DELAYLEN => 24)
         port map(rst => rst,
                  clk => clk,
                  din => sda,
@@ -113,20 +113,10 @@ begin
                 sda <= 'Z';
             end if;
 
-            -- check for i2c stop condition
-            if scl_vec = "11" and sda_vec = "01" then
-                state <= SIDLE;
-                sda <= 'Z';
-            end if;
-
             -- compute state machine for i2c slave
             case state is
                 when SIDLE =>
-                    -- check for i2c start condition
-                    if scl_vec = "11" and sda_vec = "10" then
-                        state <= SADDR;
-                        cnt_bit <= (others => '0');
-                    end if;
+                    -- do nothing
                 when SADDR =>
                     if scl_vec = "01" then
                         -- set data bit depending on cnt_bit
@@ -155,36 +145,32 @@ begin
                         -- check if master requested read or write
                         if rwbit = '1' then
                             -- master wants to read
-                            sda <= tx_data(7); -- write first bit on bus
+                            -- write first bit on bus
+                            sda <= tx_data(7);
                             data <= tx_data;
                             -- start from one because we already wrote first bit
                             cnt_bit <= "001";
                             state <= SREAD;
                         else
                             -- master wants to write
-                            sda <= 'Z'; -- release sda
+                            -- release sda
+                            sda <= 'Z';
                             cnt_bit <= (others => '0');
                             state <= SWRITE;
                         end if;
                     end if;
-                when SRECV_ACK1 =>
-                    if scl_vec = "10" then
-                        sda <= 'Z';
-                        state <= SRECV_ACK2;
-                        tx_sent <= '1';
-                    end if;
-                when SRECV_ACK2 =>
+                when SRECV_ACK =>
                     if scl_vec = "01" then
-                        -- check for ack
                         if sda_vec(0) /= '0' then
-                            -- no ack received
+                            -- received nack: master will send stop cond, but we
+                            -- can simply jump right to idle state
                             state <= SIDLE;
                         end if;
                     elsif scl_vec = "10" then
                         -- continue read
                         sda <= tx_data(7); -- write first bit on bus
                         data <= tx_data;
-                        -- start from one because we already wrote first bit
+                        -- start from 1 because we alreay transmit first bit
                         cnt_bit <= "001";
                         state <= SREAD;
                     end if;
@@ -193,10 +179,15 @@ begin
                         sda <= data(7-to_integer(cnt_bit));
                         cnt_bit <= cnt_bit + 1;
 
-                        -- if cnt_bit is full we just put last bit on bus
+                        -- if cnt_bit overflowed we finished transmitting last bit
                         -- note: data is not allowed to contain any 1, only Z or 0
-                        if cnt_bit = "111" then
-                            state <= SRECV_ACK1;
+                        if cnt_bit = "000" then
+                            -- release sda, because we need to listen for ack
+                            -- from master
+                            sda <= 'Z';
+                            state <= SRECV_ACK;
+                            -- notify that we have sent the byte
+                            tx_sent <= '1';
                         end if;
                     end if;
                 when SWRITE =>
@@ -209,10 +200,23 @@ begin
                             state <= SSEND_ACK1;
                             -- apply received byte to out port
                             rx_data <= data(DATALEN-1 downto 1) & sda_vec(0);
+                            -- notify that we have received a new byte
                             rx_recv <= '1';
                         end if;
                     end if;
             end case;
+
+            -- check for stop / start condition
+            if scl_vec = "11" and sda_vec = "01" then
+                -- i2c stop condition
+                state <= SIDLE;
+                sda <= 'Z';
+            elsif scl_vec = "11" and sda_vec = "10" then
+                -- i2c start condition / repeated start condition
+                state <= SADDR;
+                cnt_bit <= (others => '0');
+            end if;
+
         end if;
     end process;
 end architecture;

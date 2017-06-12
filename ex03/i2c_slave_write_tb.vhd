@@ -21,7 +21,7 @@ architecture behavior of i2c_slave_write_tb is
          tx_sent: out   std_logic;                    -- tx was sent, high active
          rx_data: out   std_logic_vector(7 downto 0); -- rx, data received
          rx_recv: out   std_logic;                    -- rx received, high active
-         rdy:     out   std_logic;                    -- ready, high active
+         busy:    out   std_logic;                    -- busy, high active
          sda:     inout std_logic;                    -- serial data of I2C
          scl:     inout std_logic);                   -- serial clock of I2C
     end component;
@@ -39,7 +39,7 @@ architecture behavior of i2c_slave_write_tb is
     signal tx_sent: std_logic;
     signal rx_data: std_logic_vector(7 downto 0);
     signal rx_recv: std_logic;
-    signal rdy:     std_logic;
+    signal busy:    std_logic;
 
     -- Clock period definitions
     constant clk_period: time := 10 ns;
@@ -56,7 +56,7 @@ begin
                  tx_sent => tx_sent,
                  rx_data => rx_data,
                  rx_recv => rx_recv,
-                 rdy     => rdy,
+                 busy    => busy,
                  sda     => sda,
                  scl     => scl);
 
@@ -71,6 +71,8 @@ begin
 
     -- Stimulus process
     stim_proc: process
+
+        -- sends a single bit over I2C
         procedure send_bit(tosend: std_logic) is
         begin
             scl <= '0';
@@ -82,6 +84,35 @@ begin
             wait for clk_period;
         end procedure;
 
+        -- receive a single bit over I2C
+        procedure recv_bit is
+        begin
+            scl <= '0';
+            sda <= 'Z';
+            wait for clk_period;
+            scl <= '1';
+            wait for clk_period;
+        end procedure;
+
+        -- sends start / repeated start condition over I2C
+        procedure send_start is
+        begin
+            send_bit('1');
+            -- rise sda without changing clk
+            sda <= '0';
+            wait for 25*clk_period;
+        end procedure;
+
+        -- sends stop condition over I2C
+        procedure send_stop is
+        begin
+            send_bit('0');
+            -- rise sda without changing clk
+            sda <= '1';
+            wait for 25*clk_period;
+        end procedure;
+
+        -- wait for an ack from slave over I2C
         procedure wait_ack is
         begin
             send_bit('Z');
@@ -90,30 +121,27 @@ begin
             wait for clk_period;
         end procedure;
 
-        procedure send_init is
-        begin
-            send_bit('1');
-            -- rise sda without changing clk
-            sda <= '0';
-            wait for 25*clk_period;
-        end procedure;
-
-        procedure send_term is
+        -- send ack to slave
+        procedure send_ack is
         begin
             send_bit('0');
-            -- rise sda without changing clk
-            sda <= '1';
-            wait for 25*clk_period;
         end procedure;
+
+        -- send nack to slave
+        procedure send_nack is
+        begin
+            send_bit('1');
+        end procedure;
+
     begin
         -- hold reset state for 100 ns.
         wait for clk_period*10;
         rst <= '1';
 
         -- init transmission
-        send_init;
+        send_start;
 
-        -- send address
+        -- send correct address
         send_bit('0'); -- address bit 1
         send_bit('0'); -- address bit 2
         send_bit('1'); -- address bit 3
@@ -123,8 +151,8 @@ begin
         send_bit('1'); -- address bit 7
         send_bit('0'); -- direction bit
 
-        -- we should receive acknowledge here
-        wait_ack; -- release sda
+        -- slave should send ack
+        wait_ack;
 
         -- send data
         send_bit('1'); -- data bit 1
@@ -138,17 +166,17 @@ begin
 
         -- rx_data should be "11001101"
         -- rx_recv should '1' for one cylce
-        -- we should receive acknowledge here
-        wait_ack; -- release sda
+        -- slave should send ack
+        wait_ack;
 
         -- terminate transmission
-        send_term;
+        send_stop;
 
         -- just wait a bit
         wait for clk_period*10;
 
         -- init next transmission
-        send_init;
+        send_start;
 
         -- send wrong address 0x13
         send_bit('0'); -- address bit 1
@@ -160,7 +188,26 @@ begin
         send_bit('1'); -- address bit 7
         send_bit('0'); -- direction bit
 
-        -- no ack and go back to idle mode
+        -- slave should send no ack and go back to idle mode
+        wait_ack;
+
+        -- send data
+        -- slave should not record it
+        send_bit('0'); -- data bit 1
+        send_bit('0'); -- data bit 2
+        send_bit('1'); -- data bit 3
+        send_bit('0'); -- data bit 4
+        send_bit('0'); -- data bit 5
+        send_bit('1'); -- data bit 6
+        send_bit('0'); -- data bit 7
+        send_bit('1'); -- data bit 8
+
+        -- slave should send no ack and go back to idle mode
+        wait_ack;
+
+        -- terminate transmission
+        send_stop;
+
         wait for clk_period*10;
 
         wait;
