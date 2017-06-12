@@ -169,11 +169,23 @@ begin
         -- slave should send ack
         wait_ack;
 
+        -- send data
+        send_bit('1'); -- data bit 1
+        send_bit('0'); -- data bit 2
+        send_bit('1'); -- data bit 3
+        send_bit('0'); -- data bit 4
+        send_bit('0'); -- data bit 5
+        send_bit('1'); -- data bit 6
+        send_bit('1'); -- data bit 7
+        send_bit('0'); -- data bit 8
+
+        -- rx_data should be "10100110"
+        -- rx_recv should '1' for one cylce
+        -- slave should send ack
+        wait_ack;
+
         -- terminate transmission
         send_stop;
-
-        -- just wait a bit
-        wait for clk_period*10;
 
         -- init next transmission
         send_start;
