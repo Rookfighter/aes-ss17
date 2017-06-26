@@ -7,8 +7,8 @@
 */ipcore_dir/
 */planAhead_run_*/
 */isim/
+*/netgen/
 */sch2HdlBatchFile
-
 
 *_pad.txt
 *.bit
