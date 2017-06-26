@@ -139,10 +139,14 @@ int lcd_send_cmd(uint8_t b)
     // iterate through data and apply it to GPIO ports
     for(i = 0; i < 5; ++i)
     {
+        // retrieve least significant bit
         val = dat & 0x01;
+        // set gpio according to retrieved value
         ret = set_gpio(gpio_cmd_ports[i], val);
         if(ret)
             return ret;
+        // shift dat by one to the right to get next value
+        // at lsb
         dat = dat >> 1;
     }
     
@@ -205,7 +209,7 @@ int lcd_set_pos(uint8_t x, uint8_t y) {
     return lcd_send_cmd(cmd);
 }
 
-/* Increments the current position of the cursor */
+/* Increments the current position of the cursor. */
 int lcd_inc_pos()
 {
     posx = (posx + 1) % 16;
@@ -215,28 +219,6 @@ int lcd_inc_pos()
     return lcd_set_pos(posx, posy);    
 }
 
-/* Sends the given unsigned int to the FPGA.
- * Sends at most 5 digits of the number. */
-int lcd_put_uint(unsigned int val) {
-    int ret;
-    unsigned int i;
-    char buf[6];
-    
-    snprintf(buf, 6, "%.5d", val);
-    
-    for(i = 0; buf[i] != '\0'; ++i) {        
-        ret = lcd_putc(buf[i]);
-        if(ret)
-            return ret;
-        
-        ret = lcd_inc_pos();
-        if(ret)
-            return ret;
-    }
-    
-    return 0;
-}
-
 /* Sends the given null terminated string to the FPGA. */
 int lcd_put_str(const char *str)
 {
@@ -244,14 +226,18 @@ int lcd_put_str(const char *str)
     unsigned int i;
     size_t len = strlen(str);
     
+    // iterate through string and send char by char
     for(i = 0; i < len; ++i)
     {
         ret = lcd_putc(str[i]);
         if(ret)
             return ret;
         
+        // wait a bit so that FPGA can apply current pos
+        // and newly written char correctly
         usleep(500);
         
+        // increment pos to next free field
         ret = lcd_inc_pos();
         if(ret)
             return ret;
@@ -261,6 +247,17 @@ int lcd_put_str(const char *str)
     
 }
 
+/* Sends the given unsigned int to the FPGA.
+ * Sends at most 5 digits of the number. */
+int lcd_put_uint(unsigned int val) {
+    char buf[6];
+    
+    // print only 5 digits into the buffer
+    snprintf(buf, 6, "%.5d", val);
+    return lcd_put_str(buf);
+}
+
+/* Resets cursor position to (0/0). */
 int lcd_reset_pos()
 {
     posx = 0;
@@ -268,12 +265,11 @@ int lcd_reset_pos()
     return lcd_set_pos(posx, posy);
 }
 
+/* Clears the LCD screen (which essentially means filling it with
+ * white spaces). */
 int lcd_clear()
 {
     int ret;
-    ret = lcd_reset_pos();
-    if(ret)
-        return ret;
 
     ret = lcd_put_str("                                ");
     if(ret)
@@ -284,35 +280,33 @@ int lcd_clear()
 
 int main(int argc, char * argv[]) {
     int ret;
+    size_t len;
     char buf[33];
+    time_t t;
 
     while(1) {
         
-        strncpy(buf, "Hello World! I feel brilliant!", 33);
-        printf("Sending \"%s\" ...\n", buf);
+        // get current time
+        t = time(NULL);
+        // create string from time and store it in buffer
+        strncpy(buf, ctime(&t), 33);
+        len = strlen(buf);
         
-        ret = lcd_clear();
-        if(ret)
-            return ret;
+        // cut off newline
+        if(len > 0)
+            buf[len-1] = '\0';
         
-        ret = lcd_put_str(buf);
+        printf("Time is: %s\n", buf);
+        
+        ret = lcd_reset_pos();
         if(ret) 
             return ret;
-       
-        msleep(2000);
-        
-        strncpy(buf, "This is just a test.", 33);
-        printf("Sending \"%s\" ...\n", buf);
-        
-        ret = lcd_clear();
-        if(ret)
-            return ret;
-        
+        // send the time string to FPGA
         ret = lcd_put_str(buf);
         if(ret) 
             return ret;
         
-        msleep(2000);
+        msleep(1000);
     }
 
     return 0;

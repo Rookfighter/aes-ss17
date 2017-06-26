@@ -5,7 +5,6 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_unsigned.all;
 
 entity whole_design is
     generic(RSTDEF: std_logic := '0');
