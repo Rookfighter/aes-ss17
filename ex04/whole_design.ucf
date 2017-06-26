@@ -1,0 +1,5 @@
+
+# PlanAhead Generated physical constraints 
+
+NET "ledi" LOC = V14;
+NET "ledo" LOC = N24;
