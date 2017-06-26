@@ -107,7 +107,7 @@ begin
  
             -- flush whenever possible
             lcd_flush <= '0';
-            if lcd_rdy = '1' and lcd_flush = '0' then
+            if lcd_rdy = '1' and lcd_flush = '0' and state = SIDLE then
                 -- data has to be stored temporarily, so it cannot
                 -- be changed while LCD is writing
                 lcd_pos <= pos;
