@@ -46,10 +46,13 @@ architecture behavioral of whole_design is
     -- position where char will be written
     signal pos: std_logic_vector(4 downto 0) := (others => '0');
     
+    signal reinit: std_logic := '0';
+    
     signal lcd_char:  std_logic_vector(7 downto 0) := (others => '0');
     signal lcd_pos:   std_logic_vector(4 downto 0) := (others => '0');
     signal lcd_flush: std_logic := '0';
     signal lcd_rdy:   std_logic := '0';
+    signal lcd_rst:   std_logic := '1';
     
     -- gpio clock that keeps track of curr and prev signal
     -- used to detect rising edges
@@ -63,10 +66,12 @@ begin
     gpio_clk(0) <= gpio(5);
     -- remaining bits hold payload
     gpio_cmd <= gpio(4 downto 0);
+    
+    lcd_rst <= RSTDEF when reinit = '1' else rst;
 
     mylcd: lcd
     generic map(RSTDEF => RSTDEF)
-    port map (rst =>   rst,
+    port map (rst =>   lcd_rst,
               clk =>   clk,
               din =>   lcd_char,
               posx =>  lcd_pos(3 downto 0),
@@ -85,6 +90,7 @@ begin
             state <= SIDLE;
             char <= (others => '0');
             pos <= (others => '0');
+            reinit <= '0';
             
             lcd_char <= (others => '0');
             lcd_pos <= (others => '0');
@@ -95,6 +101,9 @@ begin
             -- always keep track of prev gpio_clk
             -- so we can detect rising and falling edges
             gpio_clk(1) <= gpio_clk(0);
+            
+            -- keep reinit active for only one cycle
+            reinit <= '0';
  
             -- flush whenever possible
             lcd_flush <= '0';
@@ -115,7 +124,9 @@ begin
                         --   "00001": reset LCD (reinit)
                         --   "00010": write new char to LCD
                         --   "00011": change position of character
-                        if gpio_cmd = "00010" then
+                        if gpio_cmd = "00001" then
+                            reinit <= '1';
+                        elsif gpio_cmd = "00010" then
                             state <= SCHAR1;
                         elsif gpio_cmd = "00011" then
                             state <= SPOS;
