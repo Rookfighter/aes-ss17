@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <time.h>
+#include <string.h>
 
 #include "gpio_common.h"
 
@@ -135,7 +136,7 @@ int lcd_send_cmd(uint8_t b)
     uint8_t val;
     int ret;
     unsigned int i;
-    
+
     // iterate through data and apply it to GPIO ports
     for(i = 0; i < 5; ++i)
     {
@@ -149,19 +150,19 @@ int lcd_send_cmd(uint8_t b)
         // at lsb
         dat = dat >> 1;
     }
-    
+
     // set clk port to high for 100us
     set_gpio(gpio_clk_port, 1);
     if(ret)
         return ret;
     usleep(100);
-    
+
     // set clk port to low again for 100us
     set_gpio(gpio_clk_port, 0);
     if(ret)
         return ret;
     usleep(100);
-    
+
     return 0;
 }
 
@@ -177,18 +178,18 @@ int lcd_putc(char c) {
     // send 4 most significant bits first
     uint8_t c1 = (c & 0xf0) >> 4;
     uint8_t c2 = c & 0x0f;
-    
-    
+
+
     // send command to write a character
     ret = lcd_send_cmd(LCD_CHAR_CMD);
     if(ret)
         return ret;
-    
+
     // sends 4 most significant bits of char
     ret = lcd_send_cmd(c1);
     if(ret)
         return ret;
-    
+
     // sends 4 least significant bits of char
     return lcd_send_cmd(c2);
 }
@@ -199,12 +200,12 @@ int lcd_set_pos(uint8_t x, uint8_t y) {
     // y is determined by 5th bit
     // x is determined by 4 least significant bits
     uint8_t cmd = ((y & 0x01) << 4) | (x & 0x0f);
-    
+
     // send command to change position of cursor
     ret = lcd_send_cmd(LCD_POS_CMD);
     if(ret)
         return ret;
-    
+
     // send position
     return lcd_send_cmd(cmd);
 }
@@ -215,8 +216,8 @@ int lcd_inc_pos()
     posx = (posx + 1) % 16;
     if(posx == 0)
         posy = (posy + 1) % 2;
-    
-    return lcd_set_pos(posx, posy);    
+
+    return lcd_set_pos(posx, posy);
 }
 
 /* Sends the given null terminated string to the FPGA. */
@@ -225,33 +226,33 @@ int lcd_put_str(const char *str)
     int ret;
     unsigned int i;
     size_t len = strlen(str);
-    
+
     // iterate through string and send char by char
     for(i = 0; i < len; ++i)
     {
         ret = lcd_putc(str[i]);
         if(ret)
             return ret;
-        
+
         // wait a bit so that FPGA can apply current pos
         // and newly written char correctly
         usleep(500);
-        
+
         // increment pos to next free field
         ret = lcd_inc_pos();
         if(ret)
             return ret;
     }
-    
+
     return 0;
-    
+
 }
 
 /* Sends the given unsigned int to the FPGA.
  * Sends at most 5 digits of the number. */
 int lcd_put_uint(unsigned int val) {
     char buf[6];
-    
+
     // print only 5 digits into the buffer
     snprintf(buf, 6, "%.5d", val);
     return lcd_put_str(buf);
@@ -274,7 +275,7 @@ int lcd_clear()
     ret = lcd_put_str("                                ");
     if(ret)
         return ret;
-    
+
     return lcd_reset_pos();
 }
 
@@ -285,27 +286,27 @@ int main(int argc, char * argv[]) {
     time_t t;
 
     while(1) {
-        
+
         // get current time
         t = time(NULL);
         // create string from time and store it in buffer
         strncpy(buf, ctime(&t), 33);
         len = strlen(buf);
-        
+
         // cut off newline
         if(len > 0)
             buf[len-1] = '\0';
-        
+
         printf("Time is: %s\n", buf);
-        
+
         ret = lcd_reset_pos();
-        if(ret) 
+        if(ret)
             return ret;
         // send the time string to FPGA
         ret = lcd_put_str(buf);
-        if(ret) 
+        if(ret)
             return ret;
-        
+
         msleep(1000);
     }
 
